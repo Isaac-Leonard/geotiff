@@ -167,7 +167,7 @@ impl TIFFReader {
             2 => Endian::read_u16(&vec[..]) as usize,
             4 => Endian::read_u32(&vec[..]) as usize,
             8 => Endian::read_u64(&vec[..]) as usize,
-            _ => panic!("Vector has wrong number of elements!"),
+            n => panic!("Vector has wrong number of elements, found len={}", n),
         }
     }
 
