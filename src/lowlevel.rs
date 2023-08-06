@@ -76,6 +76,15 @@ pub enum TagValue {
     Double(Double),
 }
 
+impl TagValue {
+    pub fn from_short(&self) -> Option<u16> {
+        if let Self::Short(x) = self {
+            some(*x)
+        } else {
+            None
+        }
+    }
+}
 /// The photometric interpretation of the GeoTIFF.
 #[repr(u16)]
 #[derive(Debug)]
