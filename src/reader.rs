@@ -83,7 +83,7 @@ impl TIFFReader {
         // Bytes 4-7: offset
         // Offset from start of file to first IFD
         let ifd_offset_field = reader.read_u32::<T>()?;
-        println!("IFD offset: {:?}", ifd_offset_field);
+        //        println!("IFD offset: {:?}", ifd_offset_field);
         Ok(ifd_offset_field)
     }
 
@@ -100,7 +100,7 @@ impl TIFFReader {
         // 2 byte count of IFD entries
         let entry_count = reader.read_u16::<T>()?;
 
-        println!("IFD entry count: {}", entry_count);
+        //        println!("IFD entry count: {}", entry_count);
 
         let mut ifd = IFD {
             count: entry_count,
@@ -181,7 +181,7 @@ impl TIFFReader {
         entry_number: usize,
         reader: &mut dyn SeekableReader,
     ) -> Result<IFDEntry> {
-        println!("Reading tag at {}/{}", ifd_offset, entry_number);
+        //        println!("Reading tag at {}/{}", ifd_offset, entry_number);
         // Seek beginning (as each tag is 12 bytes long).
         reader.seek(SeekFrom::Start(ifd_offset + 12 * entry_number as u64))?;
 
