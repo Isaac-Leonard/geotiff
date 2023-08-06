@@ -77,7 +77,7 @@ pub enum TagValue {
 }
 
 impl TagValue {
-    pub fn from_short(&self) -> Option<u16> {
+    pub fn as_short(&self) -> Option<u16> {
         if let Self::Short(x) = self {
             some(*x)
         } else {

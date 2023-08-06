@@ -71,8 +71,42 @@ impl IFD {
             .map(|x| x / 8)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
     }
+
+    pub fn get_geo_key_directory(&self) -> Result<usize> {
+        self.entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
+            .map(|x| {
+                Ok(GeoKey {
+                    directory_version: x.value[0].as_u16().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "key_directory_version not a short",
+                    ))?,
+                    revision: x.value[1].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "key_revision not a short",
+                    ))?,
+                    minor_revision: x.value[2].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "minor_revision not a short",
+                    ))?,
+                    number_of_keys: x.value[2].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "number_of_keys not a short",
+                    ))?,
+                })
+            })
+            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
+    }
 }
 
+#[derive(Clone, Debug)]
+pub struct GeoKey {
+    directory_version: u16,
+    revision: u16,
+    minor_revision: u16,
+    number_of_keys: u16,
+}
 /// Decodes an u16 value into a TIFFTag.
 pub fn decode_tag(value: u16) -> Option<TIFFTag> {
     TIFFTag::from_u16(value)
