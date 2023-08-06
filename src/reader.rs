@@ -326,7 +326,6 @@ impl TIFFReader {
         let mut curr_x = 0;
         let mut curr_y = 0;
         let mut curr_z = 0;
-        eprintln!("Image depth: {}", image_depth);
         for (offset, byte_count) in offsets.iter().zip(byte_counts.iter()) {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
@@ -334,7 +333,7 @@ impl TIFFReader {
                 println!("x {:?} len {:?}", curr_x, img.len());
                 println!("y {:?} wid {:?}", curr_y, img[0].len());
                 println!("z {:?} dep {:?}", curr_z, img[0][0].len());
-                img[curr_x][curr_y][curr_z] = self.vec_to_value::<Endian>(v);
+                img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
                 curr_z += 1;
                 if curr_z >= img[curr_x][curr_y].len() {
                     curr_z = 0;
