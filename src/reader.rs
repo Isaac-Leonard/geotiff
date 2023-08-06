@@ -23,9 +23,8 @@ pub struct TIFFReader;
 
 impl TIFFReader {
     /// Loads a `.tiff` file, as specified by `filename`.
-    pub fn load(&self, filename: &str) -> Result<Box<TIFF>> {
-        let filepath = Path::new(filename);
-        let mut reader = File::open(&filepath)?;
+    pub fn load<T: AsRef<Path>>(&self, path: T) -> Result<Box<TIFF>> {
+        let mut reader = File::open(path)?;
 
         self.read(&mut reader)
     }

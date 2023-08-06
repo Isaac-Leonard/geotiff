@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io::Result;
 use std::io::{Read, Seek};
+use std::path::Path;
 
 mod lowlevel;
 mod reader;
@@ -25,9 +26,9 @@ use tiff::*;
 /// As such, other use cases are NOT tested (for now).
 impl TIFF {
     /// Opens a `.tiff` file at the location indicated by `filename`.
-    pub fn open(filename: &str) -> Result<Box<TIFF>> {
+    pub fn open<T: AsRef<Path>>(path: T) -> Result<Box<TIFF>> {
         let tiff_reader = TIFFReader;
-        tiff_reader.load(filename)
+        tiff_reader.load(path)
     }
 
     /// Gets the value at a given coordinate (in pixels).
