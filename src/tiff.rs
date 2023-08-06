@@ -1,6 +1,7 @@
 use enum_primitive::FromPrimitive;
 use lowlevel::*;
 use std::collections::{HashMap, HashSet};
+use std::io::{Error, ErrorKind, Result};
 
 /// The basic TIFF struct. This includes the header (specifying byte order and IFD offsets) as
 /// well as all the image file directories (IFDs) plus image data.
@@ -42,16 +43,31 @@ pub struct IFDEntry {
 
 /// Implementations for the IFD struct.
 impl IFD {
-    pub fn get_image_length() -> usize {
-        3
+    pub fn get_image_length(&self) -> Result<usize> {
+        self.entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::ImageLengthTag)
+            .map(extract_value_or_0)
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Image length not found.",
+            ))
     }
 
-    pub fn get_image_width() -> usize {
-        3
+    pub fn get_image_width(&self) -> Result<usize> {
+        self.entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::ImageWidthTag)
+            .map(extract_value_or_0)
+            .ok_or(Error::new(ErrorKind::InvalidData, "Image width not found."))
     }
 
-    pub fn get_bytes_per_sample() -> usize {
-        3
+    pub fn get_bytes_per_sample(&self) -> Result<usize> {
+        self.entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
+            .map(extract_value_or_0)
+            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
     }
 }
 
@@ -114,5 +130,13 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
                 .collect(),
         ),
         ImageType::YCbCr => None,
+    }
+}
+
+pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
+    match value.value[0] {
+        TagValue::ShortValue(v) => v as usize,
+        TagValue::LongValue(v) => v as usize,
+        _ => 0 as usize,
     }
 }

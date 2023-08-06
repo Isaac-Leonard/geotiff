@@ -11,6 +11,8 @@ use lowlevel::{
 };
 use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
 
+use crate::tiff::extract_value_or_0;
+
 /// A helper trait to indicate that something needs to be seekable and readable.
 pub trait SeekableReader: Seek + Read {}
 
@@ -30,7 +32,7 @@ impl TIFFReader {
     }
 
     /// Reads the `.tiff` file, starting with the byte order.
-    pub fn read(&self, reader: &mut SeekableReader) -> Result<Box<TIFF>> {
+    pub fn read(&self, reader: &mut dyn SeekableReader) -> Result<Box<TIFF>> {
         match self.read_byte_order(reader)? {
             TIFFByteOrder::LittleEndian => self.read_tiff::<LittleEndian>(reader),
             TIFFByteOrder::BigEndian => self.read_tiff::<BigEndian>(reader),
@@ -38,7 +40,7 @@ impl TIFFReader {
     }
 
     /// Helper function to read the byte order, one of `LittleEndian` or `BigEndian`.
-    pub fn read_byte_order(&self, reader: &mut SeekableReader) -> Result<TIFFByteOrder> {
+    pub fn read_byte_order(&self, reader: &mut dyn SeekableReader) -> Result<TIFFByteOrder> {
         // Bytes 0-1: "II" or "MM"
         // Read and validate ByteOrder
         match TIFFByteOrder::from_u16(reader.read_u16::<LittleEndian>()?) {
@@ -55,7 +57,7 @@ impl TIFFReader {
     ///
     /// This starts by reading the magic number, the IFD offset, the IFDs themselves, and finally,
     /// the image data.
-    fn read_tiff<T: ByteOrder>(&self, reader: &mut SeekableReader) -> Result<Box<TIFF>> {
+    fn read_tiff<T: ByteOrder>(&self, reader: &mut dyn SeekableReader) -> Result<Box<TIFF>> {
         self.read_magic::<T>(reader)?;
         let ifd_offset = self.read_ifd_offset::<T>(reader)?;
         let ifd = self.read_IFD::<T>(reader, ifd_offset)?;
@@ -67,7 +69,7 @@ impl TIFFReader {
     }
 
     /// Reads the magic number, i.e., 42.
-    fn read_magic<T: ByteOrder>(&self, reader: &mut SeekableReader) -> Result<()> {
+    fn read_magic<T: ByteOrder>(&self, reader: &mut dyn SeekableReader) -> Result<()> {
         // Bytes 2-3: 0042
         // Read and validate HeaderMagic
         match reader.read_u16::<T>()? {
@@ -80,7 +82,7 @@ impl TIFFReader {
     }
 
     /// Reads the IFD offset. The first IFD is then read from this position.
-    pub fn read_ifd_offset<T: ByteOrder>(&self, reader: &mut SeekableReader) -> Result<u32> {
+    pub fn read_ifd_offset<T: ByteOrder>(&self, reader: &mut dyn SeekableReader) -> Result<u32> {
         // Bytes 4-7: offset
         // Offset from start of file to first IFD
         let ifd_offset_field = reader.read_u32::<T>()?;
@@ -92,7 +94,11 @@ impl TIFFReader {
     ///
     /// This starts by reading the number of entries, and then the tags within each entry.
     #[allow(non_snake_case)]
-    fn read_IFD<T: ByteOrder>(&self, reader: &mut SeekableReader, ifd_offset: u32) -> Result<IFD> {
+    fn read_IFD<T: ByteOrder>(
+        &self,
+        reader: &mut dyn SeekableReader,
+        ifd_offset: u32,
+    ) -> Result<IFD> {
         reader.seek(SeekFrom::Start(ifd_offset as u64))?;
         // 2 byte count of IFD entries
         let entry_count = reader.read_u16::<T>()?;
@@ -116,7 +122,7 @@ impl TIFFReader {
     }
 
     /// Reads `n` bytes from a reader into a Vec<u8>.
-    fn read_n(&self, reader: &mut SeekableReader, bytes_to_read: u64) -> Vec<u8> {
+    fn read_n(&self, reader: &mut dyn SeekableReader, bytes_to_read: u64) -> Vec<u8> {
         let mut buf = Vec::with_capacity(bytes_to_read as usize);
         let mut chunk = reader.take(bytes_to_read);
         let status = chunk.read_to_end(&mut buf);
@@ -177,7 +183,7 @@ impl TIFFReader {
         &self,
         ifd_offset: u64,
         entry_number: usize,
-        reader: &mut SeekableReader,
+        reader: &mut dyn SeekableReader,
     ) -> Result<IFDEntry> {
         println!("Reading tag at {}/{}", ifd_offset, entry_number);
         // Seek beginning (as each tag is 12 bytes long).
@@ -257,30 +263,14 @@ impl TIFFReader {
     /// * No compression is used, i.e., CompressionTag == 1.
     fn read_image_data<Endian: ByteOrder>(
         &self,
-        reader: &mut SeekableReader,
+        reader: &mut dyn SeekableReader,
         ifd: &IFD,
     ) -> Result<Vec<Vec<Vec<usize>>>> {
         // Image size and depth.
-        let image_length = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::ImageLengthTag)
-            .ok_or(Error::new(
-                ErrorKind::InvalidData,
-                "Image length not found.",
-            ))?;
-        let image_width = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::ImageWidthTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Image width not found."))?;
-        let image_depth = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?;
-
-        // Storage location within the TIFF. First, lets get the number of rows per strip.
+        let image_length = ifd.get_image_length()?;
+        let image_width = ifd.get_image_width()?;
+        let image_depth = ifd.get_bytes_per_sample()?;
+        // Storage location with  in the TIFF. First, lets get the number of rows per strip.
         let rows_per_strip = ifd
             .entries
             .iter()
@@ -308,36 +298,23 @@ impl TIFFReader {
             ))?;
 
         // Create the output Vec.
-        let image_length = match image_length.value[0] {
-            TagValue::ShortValue(v) => v,
-            _ => 0 as u16,
-        };
-        let image_width = match image_width.value[0] {
-            TagValue::ShortValue(v) => v,
-            _ => 0 as u16,
-        };
-        let image_depth = match image_depth.value[0] {
-            TagValue::ShortValue(v) => v / 8,
-            _ => 0 as u16,
-        };
+
         // TODO The img Vec should optimally not be of usize, but of size "image_depth".
         let mut img: Vec<Vec<Vec<usize>>> = Vec::with_capacity(image_length as usize);
         for i in 0..image_length {
             &img.push(Vec::with_capacity(image_width as usize));
             for j in 0..image_width {
-                &img[i as usize].push(vec![0; 1]); // TODO To be changed to take into account SamplesPerPixel!
+                &img[i as usize].push(Vec::with_capacity(image_depth as usize));
             }
         }
 
         // Read strip after strip, and copy it into the output Vec.
-        let rows_per_strip = match rows_per_strip.value[0] {
-            TagValue::ShortValue(v) => v,
-            _ => 0 as u16,
-        };
+        let rows_per_strip = extract_value_or_0(rows_per_strip);
         let mut offsets: Vec<u32> = Vec::with_capacity(strip_offsets.value.len());
         for v in &strip_offsets.value {
             match v {
                 TagValue::LongValue(v) => offsets.push(*v),
+                TagValue::ShortValue(v) => offsets.push(*v as u32),
                 _ => (),
             };
         }
