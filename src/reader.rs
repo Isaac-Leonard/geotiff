@@ -206,10 +206,10 @@ impl TIFFReader {
 
         // Let's get the value(s) of this tag.
         let tot_size = count_value * value_size;
-        println!(
+        /*        println!(
             "{:04X} {:04X} {:08X} {:08X} {:?} {:?} {:?} {:?}",
             tag_value, tpe_value, count_value, value_offset_value, tag, tpe, value_size, tot_size
-        );
+        );*/
 
         let mut values = Vec::with_capacity(count_value as usize);
         if tot_size <= 4 {
@@ -238,7 +238,7 @@ impl TIFFReader {
             value: values,
         };
 
-        println!(
+        /*        println!(
             "IFD[{:?}] tag: {:?} type: {:?} count: {} offset: {:08x} value: {:?}",
             entry_number,
             ifd_entry.tag,
@@ -246,7 +246,7 @@ impl TIFFReader {
             ifd_entry.count,
             ifd_entry.value_offset,
             ifd_entry.value
-        );
+        );*/
 
         Ok(ifd_entry)
     }
@@ -356,9 +356,9 @@ impl TIFFReader {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
-                // println!("x {:?} len {:?}", curr_x, img.len());
-                // println!("y {:?} wid {:?}", curr_y, img[0].len());
-                // println!("z {:?} dep {:?}", curr_z, img[0][0].len());
+                println!("x {:?} len {:?}", curr_x, img.len());
+                println!("y {:?} wid {:?}", curr_y, img[0].len());
+                println!("z {:?} dep {:?}", curr_z, img[0][0].len());
                 img[curr_x][curr_y][curr_z] = self.vec_to_value::<Endian>(v);
                 curr_z += 1;
                 if curr_z >= img[curr_x][curr_y].len() {
