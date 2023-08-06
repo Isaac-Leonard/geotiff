@@ -326,6 +326,7 @@ impl TIFFReader {
         let mut curr_x = 0;
         let mut curr_y = 0;
         let mut curr_z = 0;
+        eprintln!("Image depth: {}", image_depth);
         for (offset, byte_count) in offsets.iter().zip(byte_counts.iter()) {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
