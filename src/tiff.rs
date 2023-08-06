@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
 use enum_primitive::FromPrimitive;
 use lowlevel::*;
+use std::collections::{HashMap, HashSet};
 
 /// The basic TIFF struct. This includes the header (specifying byte order and IFD offsets) as
 /// well as all the image file directories (IFDs) plus image data.
@@ -25,7 +25,7 @@ pub struct TIFFHeader {
 /// as well as a Vec with all the entries.
 #[derive(Debug)]
 pub struct IFD {
-    pub count:   u16,
+    pub count: u16,
     pub entries: Vec<IFDEntry>,
 }
 
@@ -33,11 +33,11 @@ pub struct IFD {
 /// tag values.
 #[derive(Debug)]
 pub struct IFDEntry {
-    pub tag:          TIFFTag,
-    pub tpe:          TagType,
-    pub count:        LONG,
+    pub tag: TIFFTag,
+    pub tpe: TagType,
+    pub count: LONG,
     pub value_offset: LONG,
-    pub value:        Vec<TagValue>,
+    pub value: Vec<TagValue>,
 }
 
 /// Implementations for the IFD struct.
@@ -79,7 +79,11 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
         TIFFTag::StripByteCountsTag,
         TIFFTag::XResolutionTag,
         TIFFTag::YResolutionTag,
-        TIFFTag::ResolutionUnitTag].iter().cloned().collect();
+        TIFFTag::ResolutionUnitTag,
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     let required_rgb_image_tags: HashSet<TIFFTag> = [
         TIFFTag::ImageWidthTag,
@@ -94,13 +98,21 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
         TIFFTag::XResolutionTag,
         TIFFTag::YResolutionTag,
         TIFFTag::ResolutionUnitTag,
-    ].iter().cloned().collect();
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     match *typ {
         ImageType::Bilevel => None,
         ImageType::Grayscale => None,
         ImageType::PaletteColour => None,
-        ImageType::RGB => Some(required_rgb_image_tags.difference(&required_grayscale_tags).cloned().collect()),
+        ImageType::RGB => Some(
+            required_rgb_image_tags
+                .difference(&required_grayscale_tags)
+                .cloned()
+                .collect(),
+        ),
         ImageType::YCbCr => None,
     }
 }

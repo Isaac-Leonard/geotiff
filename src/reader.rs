@@ -1,13 +1,15 @@
-use std::io::{Result, Error, ErrorKind, Read, Seek, SeekFrom};
-use std::path::Path;
-use std::fs::File;
 use num::FromPrimitive;
+use std::fs::File;
+use std::io::{Error, ErrorKind, Read, Result, Seek, SeekFrom};
+use std::path::Path;
 
-use byteorder::{ReadBytesExt, ByteOrder, BigEndian, LittleEndian};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
-use lowlevel::{TIFFByteOrder, TIFFTag, BYTE, SBYTE, SHORT, SSHORT, LONG, SLONG, FLOAT,
-               TagType, TagValue, tag_size};
-use tiff::{TIFF, IFD, IFDEntry, decode_tag, decode_tag_type};
+use lowlevel::{
+    tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue, BYTE, FLOAT, LONG, SBYTE, SHORT, SLONG,
+    SSHORT,
+};
+use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
 
 /// A helper trait to indicate that something needs to be seekable and readable.
 pub trait SeekableReader: Seek + Read {}
@@ -43,7 +45,10 @@ impl TIFFReader {
         match TIFFByteOrder::from_u16(reader.read_u16::<LittleEndian>()?) {
             Some(TIFFByteOrder::LittleEndian) => Ok(TIFFByteOrder::LittleEndian),
             Some(TIFFByteOrder::BigEndian) => Ok(TIFFByteOrder::BigEndian),
-            None => Err(Error::new(ErrorKind::Other, format!("Invalid byte order in header."))),
+            None => Err(Error::new(
+                ErrorKind::Other,
+                format!("Invalid byte order in header."),
+            )),
         }
     }
 
@@ -68,7 +73,10 @@ impl TIFFReader {
         // Read and validate HeaderMagic
         match reader.read_u16::<T>()? {
             42 => Ok(()),
-            _ => Err(Error::new(ErrorKind::Other, "Invalid magic number in header")),
+            _ => Err(Error::new(
+                ErrorKind::Other,
+                "Invalid magic number in header",
+            )),
         }
     }
 
@@ -92,7 +100,10 @@ impl TIFFReader {
 
         println!("IFD entry count: {}", entry_count);
 
-        let mut ifd = IFD { count: entry_count, entries: Vec::with_capacity(entry_count as usize) };
+        let mut ifd = IFD {
+            count: entry_count,
+            entries: Vec::with_capacity(entry_count as usize),
+        };
 
         for entry_number in 0..entry_count as usize {
             let entry = self.read_tag::<T>(ifd_offset as u64 + 2, entry_number, reader);
@@ -127,13 +138,17 @@ impl TIFFReader {
             &TagType::ASCIITag => TagValue::AsciiValue(String::from_utf8_lossy(&vec).to_string()),
             &TagType::ShortTag => TagValue::ShortValue(Endian::read_u16(&vec[..])),
             &TagType::LongTag => TagValue::LongValue(Endian::read_u32(&vec[..])),
-            &TagType::RationalTag => TagValue::RationalValue((Endian::read_u32(&vec[..(len / 2)]),
-                                                              Endian::read_u32(&vec[(len / 2)..]))),
+            &TagType::RationalTag => TagValue::RationalValue((
+                Endian::read_u32(&vec[..(len / 2)]),
+                Endian::read_u32(&vec[(len / 2)..]),
+            )),
             &TagType::SignedByteTag => TagValue::SignedByteValue(vec[0] as i8),
             &TagType::SignedShortTag => TagValue::SignedShortValue(Endian::read_i16(&vec[..])),
             &TagType::SignedLongTag => TagValue::SignedLongValue(Endian::read_i32(&vec[..])),
-            &TagType::SignedRationalTag => TagValue::SignedRationalValue((Endian::read_i32(&vec[..(len / 2)]),
-                                                                          Endian::read_i32(&vec[(len / 2)..]))),
+            &TagType::SignedRationalTag => TagValue::SignedRationalValue((
+                Endian::read_i32(&vec[..(len / 2)]),
+                Endian::read_i32(&vec[(len / 2)..]),
+            )),
             &TagType::FloatTag => TagValue::FloatValue(Endian::read_f32(&vec[..])),
             &TagType::DoubleTag => TagValue::DoubleValue(Endian::read_f64(&vec[..])),
             &TagType::UndefinedTag => TagValue::ByteValue(0),
@@ -159,8 +174,12 @@ impl TIFFReader {
     ///
     /// This consists of reading the tag ID, field type, number of values, offset to values. After
     /// decoding the tag and type, the values are retrieved.
-    fn read_tag<Endian: ByteOrder>(&self, ifd_offset: u64, entry_number: usize,
-                                   reader: &mut SeekableReader) -> Result<IFDEntry> {
+    fn read_tag<Endian: ByteOrder>(
+        &self,
+        ifd_offset: u64,
+        entry_number: usize,
+        reader: &mut SeekableReader,
+    ) -> Result<IFDEntry> {
         println!("Reading tag at {}/{}", ifd_offset, entry_number);
         // Seek beginning (as each tag is 12 bytes long).
         reader.seek(SeekFrom::Start(ifd_offset + 12 * entry_number as u64))?;
@@ -188,8 +207,10 @@ impl TIFFReader {
 
         // Let's get the value(s) of this tag.
         let tot_size = count_value * value_size;
-        println!("{:04X} {:04X} {:08X} {:08X} {:?} {:?} {:?} {:?}", tag_value, tpe_value,
-                 count_value, value_offset_value, tag, tpe, value_size, tot_size);
+        println!(
+            "{:04X} {:04X} {:08X} {:08X} {:?} {:?} {:?} {:?}",
+            tag_value, tpe_value, count_value, value_offset_value, tag, tpe, value_size, tot_size
+        );
 
         let mut values = Vec::with_capacity(count_value as usize);
         if tot_size <= 4 {
@@ -218,9 +239,15 @@ impl TIFFReader {
             value: values,
         };
 
-        println!("IFD[{:?}] tag: {:?} type: {:?} count: {} offset: {:08x} value: {:?}",
-                 entry_number, ifd_entry.tag, ifd_entry.tpe, ifd_entry.count,
-                 ifd_entry.value_offset, ifd_entry.value);
+        println!(
+            "IFD[{:?}] tag: {:?} type: {:?} count: {} offset: {:08x} value: {:?}",
+            entry_number,
+            ifd_entry.tag,
+            ifd_entry.tpe,
+            ifd_entry.count,
+            ifd_entry.value_offset,
+            ifd_entry.value
+        );
 
         Ok(ifd_entry)
     }
@@ -229,24 +256,57 @@ impl TIFFReader {
     ///
     /// As for now, the following assumptions are made:
     /// * No compression is used, i.e., CompressionTag == 1.
-    fn read_image_data<Endian: ByteOrder>(&self, reader: &mut SeekableReader,
-                                          ifd: &IFD) -> Result<Vec<Vec<Vec<usize>>>> {
+    fn read_image_data<Endian: ByteOrder>(
+        &self,
+        reader: &mut SeekableReader,
+        ifd: &IFD,
+    ) -> Result<Vec<Vec<Vec<usize>>>> {
         // Image size and depth.
-        let image_length = ifd.entries.iter().find(|&e| e.tag == TIFFTag::ImageLengthTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Image length not found."))?;
-        let image_width = ifd.entries.iter().find(|&e| e.tag == TIFFTag::ImageWidthTag)
+        let image_length = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::ImageLengthTag)
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Image length not found.",
+            ))?;
+        let image_width = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::ImageWidthTag)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image width not found."))?;
-        let image_depth = ifd.entries.iter().find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
+        let image_depth = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?;
 
         // Storage location within the TIFF. First, lets get the number of rows per strip.
-        let rows_per_strip = ifd.entries.iter().find(|&e| e.tag == TIFFTag::RowsPerStripTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Rows per strip not found."))?;
+        let rows_per_strip = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::RowsPerStripTag)
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Rows per strip not found.",
+            ))?;
         // For each strip, its offset within the TIFF file.
-        let strip_offsets = ifd.entries.iter().find(|&e| e.tag == TIFFTag::StripOffsetsTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Strip offsets not found."))?;
-        let strip_byte_counts = ifd.entries.iter().find(|&e| e.tag == TIFFTag::StripByteCountsTag)
-            .ok_or(Error::new(ErrorKind::InvalidData, "Strip byte counts not found."))?;
+        let strip_offsets = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::StripOffsetsTag)
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Strip offsets not found.",
+            ))?;
+        let strip_byte_counts = ifd
+            .entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::StripByteCountsTag)
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Strip byte counts not found.",
+            ))?;
 
         // Create the output Vec.
         let image_length = match image_length.value[0] {

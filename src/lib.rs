@@ -5,19 +5,19 @@ extern crate num;
 
 use num::FromPrimitive;
 
-use byteorder::{ReadBytesExt, WriteBytesExt, BigEndian, LittleEndian};
-use std::io::{Read, Seek};
+use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
 use std::collections::{HashMap, HashSet};
-use std::io::Result;
 use std::fmt;
+use std::io::Result;
+use std::io::{Read, Seek};
 
 mod lowlevel;
 mod reader;
 pub mod tiff;
 
-use tiff::*;
 use reader::*;
 pub use tiff::TIFF;
+use tiff::*;
 
 /// The GeoTIFF library reads `.tiff` files.
 ///
@@ -39,8 +39,13 @@ impl TIFF {
 /// Overwrite default display function.
 impl fmt::Display for TIFF {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "TIFF(Image size: [{}, {}, {}], Tag data: {:?})",
-               self.image_data.len(), self.image_data[0].len(),
-               self.image_data[0][0].len(), self.ifds)
+        write!(
+            f,
+            "TIFF(Image size: [{}, {}, {}], Tag data: {:?})",
+            self.image_data.len(),
+            self.image_data[0].len(),
+            self.image_data[0][0].len(),
+            self.ifds
+        )
     }
 }

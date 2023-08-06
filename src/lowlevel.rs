@@ -1,17 +1,17 @@
 #![allow(dead_code)]
 
 // Base types of the TIFF format.
-pub type BYTE      = u8;
-pub type SHORT     = u16;
-pub type LONG      = u32;
-pub type ASCII     = String;
-pub type RATIONAL  = (u32, u32);
-pub type SBYTE     = i8;
-pub type SSHORT    = i16;
-pub type SLONG     = i32;
+pub type BYTE = u8;
+pub type SHORT = u16;
+pub type LONG = u32;
+pub type ASCII = String;
+pub type RATIONAL = (u32, u32);
+pub type SBYTE = i8;
+pub type SSHORT = i16;
+pub type SLONG = i32;
 pub type SRATIONAL = (i32, i32);
-pub type FLOAT     = f32;
-pub type DOUBLE    = f64;
+pub type FLOAT = f32;
+pub type DOUBLE = f64;
 
 // Different values individual components can take.
 enum_from_primitive! {
@@ -45,19 +45,19 @@ enum_from_primitive! {
 /// Helper function that returns the size of a certain tag.
 pub fn tag_size(t: &TagType) -> u32 {
     match *t {
-        TagType::ByteTag           => 1,
-        TagType::ASCIITag          => 1,
-        TagType::ShortTag          => 2,
-        TagType::LongTag           => 4,
-        TagType::RationalTag       => 8,
-        TagType::SignedByteTag     => 1,
-        TagType::UndefinedTag      => 1,
-        TagType::SignedShortTag    => 2,
-        TagType::SignedLongTag     => 2,
+        TagType::ByteTag => 1,
+        TagType::ASCIITag => 1,
+        TagType::ShortTag => 2,
+        TagType::LongTag => 4,
+        TagType::RationalTag => 8,
+        TagType::SignedByteTag => 1,
+        TagType::UndefinedTag => 1,
+        TagType::SignedShortTag => 2,
+        TagType::SignedLongTag => 2,
         TagType::SignedRationalTag => 8,
-        TagType::FloatTag          => 4,
-        TagType::DoubleTag         => 8,
-        _                          => 0,
+        TagType::FloatTag => 4,
+        TagType::DoubleTag => 8,
+        _ => 0,
     }
 }
 
@@ -89,11 +89,11 @@ pub enum PhotometricInterpretation {
 #[repr(u16)]
 #[derive(Debug)]
 pub enum Compression {
-    None     = 1,
-    Huffman  = 2,
-    LZW      = 5,
-    OJPEG    = 6,
-    JPEG     = 7,
+    None = 1,
+    Huffman = 2,
+    LZW = 5,
+    OJPEG = 6,
+    JPEG = 7,
     PackBits = 32773,
 }
 
@@ -101,8 +101,8 @@ pub enum Compression {
 #[repr(u16)]
 #[derive(Debug)]
 pub enum ResolutionUnit {
-    None       = 1,
-    Inch       = 2,
+    None = 1,
+    Inch = 2,
     Centimetre = 3,
 }
 
@@ -110,10 +110,10 @@ pub enum ResolutionUnit {
 #[repr(u16)]
 #[derive(Debug)]
 pub enum SampleFormat {
-    UnsignedInteger             = 1,
+    UnsignedInteger = 1,
     TwosComplementSignedInteger = 2,
-    IEEEFloatingPoint           = 3,
-    Undefined                   = 4,
+    IEEEFloatingPoint = 3,
+    Undefined = 4,
 }
 
 /// The image type of this TIFF.
@@ -130,16 +130,15 @@ pub enum ImageType {
 #[repr(u16)]
 #[derive(Debug)]
 pub enum ImageOrientation {
-    TopLeft     = 1,	// row 0 top, col 0 lhs
-    TopRight    = 2,	// row 0 top, col 0 rhs
-    BottomRight = 3,	// row 0 bottom, col 0 rhs
-    BottomLeft  = 4,	// row 0 bottom, col 0 lhs
-    LeftTop     = 5,	// row 0 lhs, col 0 top
-    RightTop    = 6, 	// row 0 rhs, col 0 top
-    RightBottom = 7,	// row 0 rhs, col 0 bottom
-    LeftBottom  = 8,	// row 0 lhs, col 0 bottom
+    TopLeft = 1,     // row 0 top, col 0 lhs
+    TopRight = 2,    // row 0 top, col 0 rhs
+    BottomRight = 3, // row 0 bottom, col 0 rhs
+    BottomLeft = 4,  // row 0 bottom, col 0 lhs
+    LeftTop = 5,     // row 0 lhs, col 0 top
+    RightTop = 6,    // row 0 rhs, col 0 top
+    RightBottom = 7, // row 0 rhs, col 0 bottom
+    LeftBottom = 8,  // row 0 lhs, col 0 bottom
 }
-
 
 // Baseline Tags
 enum_from_primitive! {
