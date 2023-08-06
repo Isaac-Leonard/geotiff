@@ -72,13 +72,13 @@ impl IFD {
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
     }
 
-    pub fn get_geo_key_directory(&self) -> Result<usize> {
+    pub fn get_geo_key_directory(&self) -> Result<GeoKey> {
         self.entries
             .iter()
             .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
             .map(|x| {
                 Ok(GeoKey {
-                    directory_version: x.value[0].as_u16().ok_or(Error::new(
+                    directory_version: x.value[0].as_short().ok_or(Error::new(
                         ErrorKind::InvalidData,
                         "key_directory_version not a short",
                     ))?,
