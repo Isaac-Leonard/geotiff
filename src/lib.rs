@@ -3,13 +3,13 @@ extern crate byteorder;
 extern crate enum_primitive;
 extern crate num;
 
-use num::FromPrimitive;
 
-use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::collections::{HashMap, HashSet};
+
+
+
 use std::fmt;
 use std::io::Result;
-use std::io::{Read, Seek};
+
 use std::path::Path;
 
 mod lowlevel;
@@ -18,7 +18,7 @@ pub mod tiff;
 
 use reader::*;
 pub use tiff::TIFF;
-use tiff::*;
+
 
 /// The GeoTIFF library reads `.tiff` files.
 ///

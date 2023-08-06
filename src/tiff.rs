@@ -1,6 +1,6 @@
 use enum_primitive::FromPrimitive;
 use lowlevel::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::{Error, ErrorKind, Result};
 
 /// The basic TIFF struct. This includes the header (specifying byte order and IFD offsets) as
@@ -19,7 +19,7 @@ pub struct TIFF {
 #[derive(Debug)]
 pub struct TIFFHeader {
     pub byte_order: TIFFByteOrder,
-    pub ifd_offset: LONG,
+    pub ifd_offset: Long,
 }
 
 /// An image file directory (IFD) within this TIFF. It contains the number of individual IFD entries
@@ -36,8 +36,8 @@ pub struct IFD {
 pub struct IFDEntry {
     pub tag: TIFFTag,
     pub tpe: TagType,
-    pub count: LONG,
-    pub value_offset: LONG,
+    pub count: Long,
+    pub value_offset: Long,
     pub value: Vec<TagValue>,
 }
 
@@ -123,7 +123,7 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
         ImageType::Bilevel => None,
         ImageType::Grayscale => None,
         ImageType::PaletteColour => None,
-        ImageType::RGB => Some(
+        ImageType::Rgb => Some(
             required_rgb_image_tags
                 .difference(&required_grayscale_tags)
                 .cloned()
@@ -135,8 +135,8 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
 
 pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
     match value.value[0] {
-        TagValue::ShortValue(v) => v as usize,
-        TagValue::LongValue(v) => v as usize,
-        _ => 0 as usize,
+        TagValue::Short(v) => v as usize,
+        TagValue::Long(v) => v as usize,
+        _ => 0_usize,
     }
 }

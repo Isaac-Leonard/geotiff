@@ -5,10 +5,7 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
-use lowlevel::{
-    tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue, BYTE, FLOAT, LONG, SBYTE, SHORT, SLONG,
-    SSHORT,
-};
+use lowlevel::{tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue};
 use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
 
 use crate::tiff::extract_value_or_0;
@@ -48,7 +45,7 @@ impl TIFFReader {
             Some(TIFFByteOrder::BigEndian) => Ok(TIFFByteOrder::BigEndian),
             None => Err(Error::new(
                 ErrorKind::Other,
-                format!("Invalid byte order in header."),
+                "Invalid byte order in header.".to_string(),
             )),
         }
     }
@@ -139,25 +136,24 @@ impl TIFFReader {
     fn vec_to_tag_value<Endian: ByteOrder>(&self, vec: Vec<u8>, tpe: &TagType) -> TagValue {
         let len = vec.len();
         match tpe {
-            &TagType::ByteTag => TagValue::ByteValue(vec[0]),
-            &TagType::ASCIITag => TagValue::AsciiValue(String::from_utf8_lossy(&vec).to_string()),
-            &TagType::ShortTag => TagValue::ShortValue(Endian::read_u16(&vec[..])),
-            &TagType::LongTag => TagValue::LongValue(Endian::read_u32(&vec[..])),
-            &TagType::RationalTag => TagValue::RationalValue((
+            TagType::Byte => TagValue::Byte(vec[0]),
+            TagType::ASCII => TagValue::Ascii(String::from_utf8_lossy(&vec).to_string()),
+            TagType::Short => TagValue::Short(Endian::read_u16(&vec[..])),
+            TagType::Long => TagValue::Long(Endian::read_u32(&vec[..])),
+            TagType::Rational => TagValue::Rational((
                 Endian::read_u32(&vec[..(len / 2)]),
                 Endian::read_u32(&vec[(len / 2)..]),
             )),
-            &TagType::SignedByteTag => TagValue::SignedByteValue(vec[0] as i8),
-            &TagType::SignedShortTag => TagValue::SignedShortValue(Endian::read_i16(&vec[..])),
-            &TagType::SignedLongTag => TagValue::SignedLongValue(Endian::read_i32(&vec[..])),
-            &TagType::SignedRationalTag => TagValue::SignedRationalValue((
+            &TagType::SignedByte => TagValue::SignedByte(vec[0] as i8),
+            &TagType::SignedShort => TagValue::SignedShort(Endian::read_i16(&vec[..])),
+            &TagType::SignedLong => TagValue::SignedLong(Endian::read_i32(&vec[..])),
+            &TagType::SignedRational => TagValue::SignedRational((
                 Endian::read_i32(&vec[..(len / 2)]),
                 Endian::read_i32(&vec[(len / 2)..]),
             )),
-            &TagType::FloatTag => TagValue::FloatValue(Endian::read_f32(&vec[..])),
-            &TagType::DoubleTag => TagValue::DoubleValue(Endian::read_f64(&vec[..])),
-            &TagType::UndefinedTag => TagValue::ByteValue(0),
-            _ => panic!("Tag not found!"),
+            &TagType::Float => TagValue::Float(Endian::read_f32(&vec[..])),
+            &TagType::Double => TagValue::Double(Endian::read_f64(&vec[..])),
+            &TagType::Undefined => TagValue::Byte(0),
         }
     }
 
@@ -166,7 +162,7 @@ impl TIFFReader {
     fn vec_to_value<Endian: ByteOrder>(&self, vec: Vec<u8>) -> usize {
         let len = vec.len();
         match len {
-            0 => 0 as usize,
+            0 => 0_usize,
             1 => vec[0] as usize,
             2 => Endian::read_u16(&vec[..]) as usize,
             4 => Endian::read_u32(&vec[..]) as usize,
@@ -300,28 +296,29 @@ impl TIFFReader {
         // Create the output Vec.
 
         // TODO The img Vec should optimally not be of usize, but of size "image_depth".
-        let mut img: Vec<Vec<Vec<usize>>> = Vec::with_capacity(image_length as usize);
+        let mut img: Vec<Vec<Vec<usize>>> = Vec::with_capacity(image_length);
         for i in 0..image_length {
-            &img.push(Vec::with_capacity(image_width as usize));
-            for j in 0..image_width {
-                &img[i as usize].push(Vec::with_capacity(image_depth as usize));
+            img.push(Vec::with_capacity(image_width));
+            for _j in 0..image_width {
+                img[i].push(Vec::with_capacity(image_depth));
             }
         }
 
         // Read strip after strip, and copy it into the output Vec.
-        let rows_per_strip = extract_value_or_0(rows_per_strip);
+        let _rows_per_strip = extract_value_or_0(rows_per_strip);
         let mut offsets: Vec<u32> = Vec::with_capacity(strip_offsets.value.len());
         for v in &strip_offsets.value {
             match v {
-                TagValue::LongValue(v) => offsets.push(*v),
-                TagValue::ShortValue(v) => offsets.push(*v as u32),
+                TagValue::Long(v) => offsets.push(*v),
+                TagValue::Short(v) => offsets.push(*v as u32),
                 _ => (),
             };
         }
         let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_byte_counts.value.len());
         for v in &strip_byte_counts.value {
             match v {
-                TagValue::LongValue(v) => byte_counts.push(*v),
+                TagValue::Long(v) => byte_counts.push(*v),
+                TagValue::Short(v) => byte_counts.push(*v as u32),
                 _ => (),
             };
         }
@@ -331,7 +328,7 @@ impl TIFFReader {
         let mut curr_z = 0;
         for (offset, byte_count) in offsets.iter().zip(byte_counts.iter()) {
             reader.seek(SeekFrom::Start(*offset as u64))?;
-            for i in 0..(*byte_count / image_depth as u32) {
+            for _i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
                 println!("x {:?} len {:?}", curr_x, img.len());
                 println!("y {:?} wid {:?}", curr_y, img[0].len());
@@ -342,7 +339,7 @@ impl TIFFReader {
                     curr_z = 0;
                     curr_y += 1;
                 }
-                if curr_y >= img[curr_x].len() as usize {
+                if curr_y >= img[curr_x].len() {
                     curr_y = 0;
                     curr_x += 1;
                 }

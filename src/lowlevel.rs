@@ -1,17 +1,17 @@
 #![allow(dead_code)]
 
 // Base types of the TIFF format.
-pub type BYTE = u8;
-pub type SHORT = u16;
-pub type LONG = u32;
-pub type ASCII = String;
-pub type RATIONAL = (u32, u32);
-pub type SBYTE = i8;
-pub type SSHORT = i16;
-pub type SLONG = i32;
-pub type SRATIONAL = (i32, i32);
-pub type FLOAT = f32;
-pub type DOUBLE = f64;
+pub type Bytes = u8;
+pub type Short = u16;
+pub type Long = u32;
+pub type Ascii = String;
+pub type Rational = (u32, u32);
+pub type SignedByte = i8;
+pub type SignedShort = i16;
+pub type SignedLong = i32;
+pub type SignedRational = (i32, i32);
+pub type Float = f32;
+pub type Double = f64;
 
 // Different values individual components can take.
 enum_from_primitive! {
@@ -27,54 +27,53 @@ enum_from_primitive! {
     #[repr(u16)]
     #[derive(Debug,PartialEq)]
     pub enum TagType {
-        ByteTag           = 1,
-        ASCIITag          = 2,
-        ShortTag          = 3,
-        LongTag           = 4,
-        RationalTag       = 5,
-        SignedByteTag     = 6,
-        UndefinedTag      = 7,
-        SignedShortTag    = 8,
-        SignedLongTag     = 9,
-        SignedRationalTag = 10,
-        FloatTag          = 11,
-        DoubleTag         = 12,
+        Byte           = 1,
+        ASCII          = 2,
+        Short          = 3,
+        Long           = 4,
+        Rational       = 5,
+        SignedByte     = 6,
+        Undefined      = 7,
+        SignedShort    = 8,
+        SignedLong     = 9,
+        SignedRational = 10,
+        Float          = 11,
+        Double         = 12,
     }
 }
 
 /// Helper function that returns the size of a certain tag.
 pub fn tag_size(t: &TagType) -> u32 {
     match *t {
-        TagType::ByteTag => 1,
-        TagType::ASCIITag => 1,
-        TagType::ShortTag => 2,
-        TagType::LongTag => 4,
-        TagType::RationalTag => 8,
-        TagType::SignedByteTag => 1,
-        TagType::UndefinedTag => 1,
-        TagType::SignedShortTag => 2,
-        TagType::SignedLongTag => 2,
-        TagType::SignedRationalTag => 8,
-        TagType::FloatTag => 4,
-        TagType::DoubleTag => 8,
-        _ => 0,
+        TagType::Byte => 1,
+        TagType::ASCII => 1,
+        TagType::Short => 2,
+        TagType::Long => 4,
+        TagType::Rational => 8,
+        TagType::SignedByte => 1,
+        TagType::Undefined => 1,
+        TagType::SignedShort => 2,
+        TagType::SignedLong => 2,
+        TagType::SignedRational => 8,
+        TagType::Float => 4,
+        TagType::Double => 8,
     }
 }
 
 /// All the possible values of tags.
 #[derive(Debug)]
 pub enum TagValue {
-    ByteValue(BYTE),
-    AsciiValue(ASCII),
-    ShortValue(SHORT),
-    LongValue(LONG),
-    RationalValue(RATIONAL),
-    SignedByteValue(SBYTE),
-    SignedShortValue(SSHORT),
-    SignedLongValue(SLONG),
-    SignedRationalValue(SRATIONAL),
-    FloatValue(FLOAT),
-    DoubleValue(DOUBLE),
+    Byte(Bytes),
+    Ascii(Ascii),
+    Short(Short),
+    Long(Long),
+    Rational(Rational),
+    SignedByte(SignedByte),
+    SignedShort(SignedShort),
+    SignedLong(SignedLong),
+    SignedRational(SignedRational),
+    Float(Float),
+    Double(Double),
 }
 
 /// The photometric interpretation of the GeoTIFF.
@@ -91,9 +90,9 @@ pub enum PhotometricInterpretation {
 pub enum Compression {
     None = 1,
     Huffman = 2,
-    LZW = 5,
-    OJPEG = 6,
-    JPEG = 7,
+    Lzw = 5,
+    Ojpeg = 6,
+    Jpeg = 7,
     PackBits = 32773,
 }
 
@@ -122,7 +121,7 @@ pub enum ImageType {
     Bilevel,
     Grayscale,
     PaletteColour,
-    RGB,
+    Rgb,
     YCbCr,
 }
 
@@ -234,5 +233,5 @@ enum_from_primitive! {
 }
 
 // Default Values
-static PHOTOMETRIC_INTERPRETATION_SHORT_DEFAULT: SHORT = 1;
-static PHOTOMETRIC_INTERPRETATION_LONG_DEFAULT: LONG = 1;
+static PHOTOMETRIC_INTERPRETATION_SHORT_DEFAULT: Short = 1;
+static PHOTOMETRIC_INTERPRETATION_LONG_DEFAULT: Long = 1;
