@@ -67,6 +67,8 @@ impl IFD {
             .iter()
             .find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
             .map(extract_value_or_0)
+            // This gets bits, so need to turn into bytes
+            .map(|x| x / 8)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
     }
 }
@@ -138,5 +140,3 @@ pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
         TagValue::Short(v) => v as usize,
         TagValue::Long(v) => v as usize,
         _ => 0_usize,
-    }
-}
