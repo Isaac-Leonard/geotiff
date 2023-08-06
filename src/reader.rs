@@ -330,9 +330,9 @@ impl TIFFReader {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
-                println!("x {:?} len {:?}", curr_x, img.len());
-                println!("y {:?} wid {:?}", curr_y, img[0].len());
-                println!("z {:?} dep {:?}", curr_z, img[0][0].len());
+                //                println!("x {:?} len {:?}", curr_x, img.len());
+                //                println!("y {:?} wid {:?}", curr_y, img[0].len());
+                //                println!("z {:?} dep {:?}", curr_z, img[0][0].len());
                 img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
                 curr_z += 1;
                 if curr_z >= img[curr_x][curr_y].len() {
