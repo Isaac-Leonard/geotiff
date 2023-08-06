@@ -140,3 +140,5 @@ pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
         TagValue::Short(v) => v as usize,
         TagValue::Long(v) => v as usize,
         _ => 0_usize,
+    }
+}
