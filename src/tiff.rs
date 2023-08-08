@@ -52,7 +52,9 @@ impl IFD {
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
                 ))?;
-                dbg!(x.value.iter())
+                dbg!(x
+                    .value
+                    .iter()
                     .skip(4)
                     .map(|x| {
                         println!("Skipped 4: {:?}", x);
@@ -63,37 +65,37 @@ impl IFD {
                         println!("Took 4*num_key: {:?}", x);
                         x
                     })
-                    .array_chunks::<4>()
-                    .map(|x| {
-                        println!("Chunked: {:?}", x);
-                        x
+                    .array_chunks::<4>())
+                .map(|x| {
+                    println!("Chunked: {:?}", x);
+                    x
+                })
+                .map(|[id, location, count, val_or_offset]| {
+                    println!("parsing key");
+                    // Assume no extra values are needed for now, aka location=0 and count =1
+                    if location.as_short()? != 0 && count.as_short()? != 1 {
+                        panic!("Cannot yet handle geotiffs with non-short valued keys")
+                    };
+                    let id = id.as_short()?;
+                    let value = val_or_offset.as_short()?;
+                    Some(match id {
+                        1024 => GeoKey::GTModelTypeGeoKey(value),
+                        1025 => GeoKey::GTRasterTypeGeoKey(value),
+                        2048 => GeoKey::GeographicTypeGeoKey(value),
+                        2050 => GeoKey::GeogGeodeticDatumGeoKey(value),
+                        2051 => GeoKey::GeogPrimeMeridianGeoKey(value),
+                        2052 => GeoKey::GeogLinearUnitsGeoKey(value),
+                        2053 => GeoKey::GeogLinearUnitSizeGeoKey(value),
+                        2054 => GeoKey::GeogAngularUnitsGeoKey(value),
+                        x => GeoKey::Unknown(x, value),
                     })
-                    .map(|[id, location, count, val_or_offset]| {
-                        println!("parsing key");
-                        // Assume no extra values are needed for now, aka location=0 and count =1
-                        if location.as_short()? != 0 && count.as_short()? != 1 {
-                            panic!("Cannot yet handle geotiffs with non-short valued keys")
-                        };
-                        let id = id.as_short()?;
-                        let value = val_or_offset.as_short()?;
-                        Some(match id {
-                            1024 => GeoKey::GTModelTypeGeoKey(value),
-                            1025 => GeoKey::GTRasterTypeGeoKey(value),
-                            2048 => GeoKey::GeographicTypeGeoKey(value),
-                            2050 => GeoKey::GeogGeodeticDatumGeoKey(value),
-                            2051 => GeoKey::GeogPrimeMeridianGeoKey(value),
-                            2052 => GeoKey::GeogLinearUnitsGeoKey(value),
-                            2053 => GeoKey::GeogLinearUnitSizeGeoKey(value),
-                            2054 => GeoKey::GeogAngularUnitsGeoKey(value),
-                            x => GeoKey::Unknown(x, value),
-                        })
-                    })
-                    .map(|x| dbg!(x))
-                    .collect::<Option<Vec<_>>>()
-                    .ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "Could not parse geo keys properly",
-                    ))
+                })
+                .map(|x| dbg!(x))
+                .collect::<Option<Vec<_>>>()
+                .ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    "Could not parse geo keys properly",
+                ))
             })
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
     }
