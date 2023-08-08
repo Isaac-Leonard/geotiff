@@ -53,8 +53,7 @@ impl IFD {
                     "number_of_keys not a short",
                 ))?;
                 dbg!(x);
-                dbg!(x
-                    .value
+                x.value
                     .iter()
                     .skip(4)
                     .take(number_of_keys as usize * 4)
@@ -82,8 +81,9 @@ impl IFD {
                     .ok_or(Error::new(
                         ErrorKind::InvalidData,
                         "Could not parse geo keys properly",
-                    )))
+                    ))
             })
+            .map(|x| dbg!(x))
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
     }
 }
