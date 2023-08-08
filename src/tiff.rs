@@ -77,8 +77,8 @@ impl IFD {
                             2054 => GeoKey::GeogAngularUnitsGeoKey(value),
                             x => GeoKey::Unknown(x, value),
                         })
-                    }))
-                .collect::<Option<Vec<_>>>()
+                    })
+                    .collect::<Option<Vec<_>>>())
                 .ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "Could not parse geo keys properly",
