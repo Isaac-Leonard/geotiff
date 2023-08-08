@@ -52,12 +52,7 @@ impl IFD {
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
                 ))?;
-                x.value
-                    .iter()
-                    .map(|x| {
-                        eprintln!("iter called: {:?}", x);
-                        x
-                    })
+                dbg!(x.value.iter())
                     .skip(4)
                     .map(|x| {
                         eprintln!("Skipped 4: {:?}", x);
