@@ -12,7 +12,6 @@ pub struct TIFF {
     pub ifds: Vec<IFD>,
     // This is width * length * bytes_per_sample.
     pub image_data: Vec<Vec<Vec<usize>>>,
-    pub geo_keys: GeoKeys,
 }
 
 /// The header of a TIFF file. This comes first in any TIFF file and contains the byte order
@@ -32,31 +31,56 @@ pub struct IFD {
 }
 
 impl IFD {
-    pub fn get_geo_key_directory(&self) -> Result<GeoKeyDirectoryInfo> {
+    pub fn get_geo_keys(&self) -> Result<Vec<GeoKey>> {
         self.entries
             .iter()
             .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
             .map(|x| {
-                eprintln!("geo key directory value length:{}", x.value.len());
-                eprintln!("geo key directory values :{:?}", x.value);
-                Ok(GeoKeyDirectoryInfo {
-                    directory_version: x.value[0].as_short().ok_or(Error::new(
+                let _directory_version = x.value[0].as_short().ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    "key_directory_version not a short",
+                ))?;
+                let _revision = x.value[1].as_short().ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    "key_revision not a short",
+                ))?;
+                let _minor_revision = x.value[2].as_short().ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    "minor_revision not a short",
+                ))?;
+                let number_of_keys = x.value[2].as_short().ok_or(Error::new(
+                    ErrorKind::InvalidData,
+                    "number_of_keys not a short",
+                ))?;
+                x.value
+                    .iter()
+                    .skip(4)
+                    .take(number_of_keys as usize * 4)
+                    .array_chunks::<4>()
+                    .map(|[id, location, count, val_or_offset]| {
+                        // Assume no extra values are needed for now, aka location=0 and count =1
+                        if location.as_short()? != 0 && count.as_short()? != 1 {
+                            panic!("Cannot yet handle geotiffs with non-short valued keys")
+                        };
+                        let id = id.as_short()?;
+                        let value = val_or_offset.as_short()?;
+                        Some(match id {
+                            1024 => GeoKey::GTModelTypeGeoKey(value),
+                            1025 => GeoKey::GTRasterTypeGeoKey(value),
+                            2048 => GeoKey::GeographicTypeGeoKey(value),
+                            2050 => GeoKey::GeogGeodeticDatumGeoKey(value),
+                            2051 => GeoKey::GeogPrimeMeridianGeoKey(value),
+                            2052 => GeoKey::GeogLinearUnitsGeoKey(value),
+                            2053 => GeoKey::GeogLinearUnitSizeGeoKey(value),
+                            2054 => GeoKey::GeogAngularUnitsGeoKey(value),
+                            x => GeoKey::Unknown(x, value),
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()
+                    .ok_or(Error::new(
                         ErrorKind::InvalidData,
-                        "key_directory_version not a short",
-                    ))?,
-                    revision: x.value[1].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "key_revision not a short",
-                    ))?,
-                    minor_revision: x.value[2].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "minor_revision not a short",
-                    ))?,
-                    number_of_keys: x.value[2].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "number_of_keys not a short",
-                    ))?,
-                })
+                        "Could not parse geo keys properly",
+                    ))
             })
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
     }
@@ -183,4 +207,14 @@ pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
 }
 
 #[derive(Debug)]
-pub struct GeoKeys {}
+pub enum GeoKey {
+    GTModelTypeGeoKey(u16),
+    GTRasterTypeGeoKey(u16),
+    GeographicTypeGeoKey(u16),
+    GeogLinearUnitsGeoKey(u16),
+    GeogAngularUnitsGeoKey(u16),
+    GeogGeodeticDatumGeoKey(u16),
+    GeogPrimeMeridianGeoKey(u16),
+    GeogLinearUnitSizeGeoKey(u16),
+    Unknown(u16, u16),
+}

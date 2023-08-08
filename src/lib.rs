@@ -1,3 +1,5 @@
+#![feature(iter_array_chunks)]
+
 extern crate byteorder;
 #[macro_use]
 extern crate enum_primitive;
