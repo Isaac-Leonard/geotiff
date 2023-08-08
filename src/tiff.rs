@@ -52,7 +52,6 @@ impl IFD {
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
                 ))?;
-                dbg!(x);
                 x.value
                     .iter()
                     .skip(4)
