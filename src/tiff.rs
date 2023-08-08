@@ -58,8 +58,8 @@ impl IFD {
                     .skip(4)
                     .take(number_of_keys as usize * 4)
                     .collect::<Vec<_>>())
-                .array_chunks::<4>()
                 .iter()
+                .array_chunks::<4>()
                 .map(|[id, location, count, val_or_offset]| {
                     println!("parsing key");
                     // Assume no extra values are needed for now, aka location=0 and count =1
