@@ -52,6 +52,7 @@ impl IFD {
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
                 ))?;
+                dbg!(number_of_keys);
                 dbg!(dbg!(x.value.iter().skip(4).collect::<Vec<_>>())
                     .iter()
                     .take(number_of_keys as usize * 4)
@@ -216,5 +217,4 @@ pub enum GeoKey {
     GeogGeodeticDatumGeoKey(u16),
     GeogPrimeMeridianGeoKey(u16),
     GeogLinearUnitSizeGeoKey(u16),
-    Unknown(u16, u16),
-}
+    Unknown(u
