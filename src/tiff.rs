@@ -55,21 +55,21 @@ impl IFD {
                 dbg!(x.value.iter())
                     .skip(4)
                     .map(|x| {
-                        eprintln!("Skipped 4: {:?}", x);
+                        println!("Skipped 4: {:?}", x);
                         x
                     })
                     .take(number_of_keys as usize * 4)
                     .map(|x| {
-                        eprintln!("Took 4*num_key: {:?}", x);
+                        println!("Took 4*num_key: {:?}", x);
                         x
                     })
                     .array_chunks::<4>()
                     .map(|x| {
-                        eprintln!("Chunked: {:?}", x);
+                        println!("Chunked: {:?}", x);
                         x
                     })
                     .map(|[id, location, count, val_or_offset]| {
-                        eprintln!("parsing key");
+                        println!("parsing key");
                         // Assume no extra values are needed for now, aka location=0 and count =1
                         if location.as_short()? != 0 && count.as_short()? != 1 {
                             panic!("Cannot yet handle geotiffs with non-short valued keys")
