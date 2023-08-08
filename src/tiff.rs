@@ -217,4 +217,5 @@ pub enum GeoKey {
     GeogGeodeticDatumGeoKey(u16),
     GeogPrimeMeridianGeoKey(u16),
     GeogLinearUnitSizeGeoKey(u16),
-    Unknown(u
+    Unknown(u16, u16),
+}
