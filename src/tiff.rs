@@ -56,8 +56,20 @@ impl IFD {
                 x.value
                     .iter()
                     .skip(4)
+                    .map(|x| {
+                        eprintln!("Skipped 4: {:?}", x);
+                        x
+                    })
                     .take(number_of_keys as usize * 4)
+                    .map(|x| {
+                        eprintln!("Took 4*num_key: {:?}", x);
+                        x
+                    })
                     .array_chunks::<4>()
+                    .map(|x| {
+                        eprintln!("Chunked: {:?}", x);
+                        x
+                    })
                     .map(|[id, location, count, val_or_offset]| {
                         eprintln!("parsing key");
                         // Assume no extra values are needed for now, aka location=0 and count =1
