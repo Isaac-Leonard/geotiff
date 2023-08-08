@@ -54,6 +54,10 @@ impl IFD {
                 ))?;
                 x.value
                     .iter()
+                    .map(|x| {
+                        eprintln!("iter called: {:?}", x);
+                        x
+                    })
                     .skip(4)
                     .map(|x| {
                         eprintln!("Skipped 4: {:?}", x);
