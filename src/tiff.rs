@@ -38,9 +38,7 @@ impl IFD {
             .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
             .map(|x| {
                 eprintln!("geo key directory value length:{}", x.value.len());
-                x
-            })
-            .map(|x| {
+                eprintln!("geo key directory values :{:?}", x.value);
                 Ok(GeoKeyDirectoryInfo {
                     directory_version: x.value[0].as_short().ok_or(Error::new(
                         ErrorKind::InvalidData,
