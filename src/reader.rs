@@ -8,7 +8,7 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use lowlevel::{tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue};
 use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
 
-use crate::tiff::extract_value_or_0;
+use crate::tiff::{extract_value_or_0, GeoKeys};
 
 /// A helper trait to indicate that something needs to be seekable and readable.
 pub trait SeekableReader: Seek + Read {}
@@ -58,11 +58,23 @@ impl TIFFReader {
         self.read_magic::<T>(reader)?;
         let ifd_offset = self.read_ifd_offset::<T>(reader)?;
         let ifd = self.read_IFD::<T>(reader, ifd_offset)?;
+        let geo_keys = self.read_geo_keys::<T>(reader, &ifd)?;
         let image_data = self.read_image_data::<T>(reader, &ifd)?;
         Ok(Box::new(TIFF {
             ifds: vec![ifd],
             image_data,
+            geo_keys,
         }))
+    }
+
+    /// Gets the geo_keys if they exist
+    fn read_geo_keys<T: ByteOrder>(
+        &self,
+        reader: &mut dyn SeekableReader,
+        ifd: &IFD,
+    ) -> Result<GeoKeys> {
+        let directory = ifd.get_geo_key_directory()?;
+        Ok(GeoKeys {})
     }
 
     /// Reads the magic number, i.e., 42.

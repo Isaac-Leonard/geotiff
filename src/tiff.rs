@@ -12,6 +12,7 @@ pub struct TIFF {
     pub ifds: Vec<IFD>,
     // This is width * length * bytes_per_sample.
     pub image_data: Vec<Vec<Vec<usize>>>,
+    pub geo_keys: GeoKeys,
 }
 
 /// The header of a TIFF file. This comes first in any TIFF file and contains the byte order
@@ -28,6 +29,39 @@ pub struct TIFFHeader {
 pub struct IFD {
     pub count: u16,
     pub entries: Vec<IFDEntry>,
+}
+
+impl IFD {
+    pub fn get_geo_key_directory(&self) -> Result<GeoKeyDirectoryInfo> {
+        self.entries
+            .iter()
+            .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
+            .map(|x| {
+                eprintln!("geo key directory value length:{}", x.value.len());
+                x
+            })
+            .map(|x| {
+                Ok(GeoKeyDirectoryInfo {
+                    directory_version: x.value[0].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "key_directory_version not a short",
+                    ))?,
+                    revision: x.value[1].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "key_revision not a short",
+                    ))?,
+                    minor_revision: x.value[2].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "minor_revision not a short",
+                    ))?,
+                    number_of_keys: x.value[2].as_short().ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "number_of_keys not a short",
+                    ))?,
+                })
+            })
+            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
+    }
 }
 
 /// A single entry within an image file directory (IDF). It consists of a tag, a type, and several
@@ -71,41 +105,14 @@ impl IFD {
             .map(|x| x / 8)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
     }
-
-    pub fn get_geo_key_directory(&self) -> Result<GeoKey> {
-        self.entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
-            .map(|x| {
-                Ok(GeoKey {
-                    directory_version: x.value[0].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "key_directory_version not a short",
-                    ))?,
-                    revision: x.value[1].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "key_revision not a short",
-                    ))?,
-                    minor_revision: x.value[2].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "minor_revision not a short",
-                    ))?,
-                    number_of_keys: x.value[2].as_short().ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "number_of_keys not a short",
-                    ))?,
-                })
-            })
-            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
-    }
 }
 
 #[derive(Clone, Debug)]
-pub struct GeoKey {
-    directory_version: u16,
-    revision: u16,
-    minor_revision: u16,
-    number_of_keys: u16,
+pub struct GeoKeyDirectoryInfo {
+    pub directory_version: u16,
+    pub revision: u16,
+    pub minor_revision: u16,
+    pub number_of_keys: u16,
 }
 /// Decodes an u16 value into a TIFFTag.
 pub fn decode_tag(value: u16) -> Option<TIFFTag> {
@@ -176,3 +183,6 @@ pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
         _ => 0_usize,
     }
 }
+
+#[derive(Debug)]
+pub struct GeoKeys {}
