@@ -48,13 +48,14 @@ impl IFD {
                     ErrorKind::InvalidData,
                     "minor_revision not a short",
                 ))?;
-                let number_of_keys = x.value[2].as_short().ok_or(Error::new(
+                let number_of_keys = x.value[3].as_short().ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
                 ))?;
-                dbg!(number_of_keys);
-                dbg!(dbg!(x.value.iter().skip(4).collect::<Vec<_>>())
+
+                x.value
                     .iter()
+                    .skip(4)
                     .take(number_of_keys as usize * 4)
                     .array_chunks::<4>()
                     .map(|[id, location, count, val_or_offset]| {
@@ -77,11 +78,11 @@ impl IFD {
                             x => GeoKey::Unknown(x, value),
                         })
                     })
-                    .collect::<Option<Vec<_>>>())
-                .ok_or(Error::new(
-                    ErrorKind::InvalidData,
-                    "Could not parse geo keys properly",
-                ))
+                    .collect::<Option<Vec<_>>>()
+                    .ok_or(Error::new(
+                        ErrorKind::InvalidData,
+                        "Could not parse geo keys properly",
+                    ))
             })
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
     }
