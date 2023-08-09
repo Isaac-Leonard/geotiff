@@ -437,9 +437,9 @@ impl TIFFReader {
             let start_x = tile_col * tile_width;
             let mut curr_x = start_x;
             let _end_x = (tile_col + 1) * tile_width;
-            let start_y = tiles_down * tile_length - (tile_row + 1) * tile_length;
+            let start_y = max_y + 1 - (tile_row + 1) * tile_length;
             let mut curr_y = start_y;
-            let end_y = tiles_down * tile_length - tile_row * tile_length;
+            let end_y = max_y - tile_row * tile_length;
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
