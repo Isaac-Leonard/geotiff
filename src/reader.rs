@@ -446,7 +446,9 @@ impl TIFFReader {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
+                dbg!(curr_y);
                 if curr_x >= image_width || curr_y >= image_length {
+                    eprintln!("safely Outside of image");
                     curr_z += 1;
                     if curr_z >= img[curr_y][curr_x].len() {
                         curr_z = 0;
