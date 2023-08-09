@@ -447,7 +447,7 @@ impl TIFFReader {
                         curr_x += 1;
                     }
                     if curr_x >= end_x {
-                        curr_x = 0;
+                        curr_x = start_x;
                         curr_y += 1;
                     }
                     continue;
@@ -459,7 +459,7 @@ impl TIFFReader {
                     curr_x += 1;
                 }
                 if curr_x >= end_x {
-                    curr_x = 0;
+                    curr_x = start_x;
                     curr_y += 1;
                 }
             }
