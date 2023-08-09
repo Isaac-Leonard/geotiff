@@ -8,8 +8,6 @@ use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 use lowlevel::{tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue};
 use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
 
-use crate::tiff::extract_value_or_0;
-
 /// A helper trait to indicate that something needs to be seekable and readable.
 pub trait SeekableReader: Seek + Read {}
 
@@ -255,6 +253,32 @@ impl TIFFReader {
         Ok(ifd_entry)
     }
 
+    fn get_image_size_data(&self, ifd: &IFD) -> ImageSizeData {
+        // Storage location with  in the TIFF. First, lets get the number of rows per strip.
+        let rows_per_strip = ifd
+            .get(TIFFTag::RowsPerStripTag)
+            // TODO: Should maybe error here if that fails
+            .and_then(|x| x.value[0].as_unsigned_int())
+            .map(|x| x as u32)
+            .unwrap_or_else(u32::max_value);
+        // For each strip, its offset within the TIFF file.
+        let strip_offsets = ifd.get(TIFFTag::StripOffsetsTag);
+        let strip_row_byte_counts = ifd.get(TIFFTag::StripByteCountsTag);
+        let _tile_width = ifd.get(TIFFTag::TileWidthTag);
+        let _tile_height = ifd.get(TIFFTag::TileHeightTag);
+        let _tile_offsets = ifd.get(TIFFTag::TileOffsetsTag);
+        let _tile_byte_count = ifd.get(TIFFTag::TileByteCountTag);
+        let _plainar_configuration = ifd.get(TIFFTag::PlanarConfigurationTag);
+        match strip_offsets.zip(strip_row_byte_counts) {
+            Some((strip_offsets, strip_row_byte_countt)) => ImageSizeData::Image {
+                strip_offsets,
+                strip_row_byte_countt,
+                rows_per_strip,
+            },
+            _ => panic!("Tiled data not supported yet"),
+        }
+    }
+
     /// Reads the image data into a 3D-Vec<u8>.
     ///
     /// As for now, the following assumptions are made:
@@ -268,32 +292,15 @@ impl TIFFReader {
         let image_length = ifd.get_image_length()?;
         let image_width = ifd.get_image_width()?;
         let image_depth = ifd.get_bytes_per_sample()?;
-        // Storage location with  in the TIFF. First, lets get the number of rows per strip.
-        let _rows_per_strip = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::RowsPerStripTag)
-            .map(extract_value_or_0)
-            // TODO: Should maybe error here if that fails
-            .unwrap_or_else(|| u32::max_value() as usize);
-        // For each strip, its offset within the TIFF file.
-        let strip_offsets = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::StripOffsetsTag)
-            .ok_or(Error::new(
-                ErrorKind::InvalidData,
-                "Strip offsets not found.",
-            ))?;
-        let strip_byte_counts = ifd
-            .entries
-            .iter()
-            .find(|&e| e.tag == TIFFTag::StripByteCountsTag)
-            .ok_or(Error::new(
-                ErrorKind::InvalidData,
-                "Strip byte counts not found.",
-            ))?;
-
+        let image_size_data = self.get_image_size_data(ifd);
+        let (_rows_per_strip, strip_row_byte_countts, strip_offsets) = match image_size_data {
+            ImageSizeData::Tiles { .. } => panic!("Tiles not supported"),
+            ImageSizeData::Image {
+                rows_per_strip,
+                strip_offsets,
+                strip_row_byte_countt,
+            } => (rows_per_strip, strip_offsets, strip_row_byte_countt),
+        };
         // Create the output Vec.
 
         // TODO The img Vec should optimally not be of usize, but of size "image_depth".
@@ -314,8 +321,8 @@ impl TIFFReader {
                 _ => (),
             };
         }
-        let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_byte_counts.value.len());
-        for v in &strip_byte_counts.value {
+        let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_row_byte_countts.value.len());
+        for v in &strip_row_byte_countts.value {
             match v {
                 TagValue::Long(v) => byte_counts.push(*v),
                 TagValue::Short(v) => byte_counts.push(*v as u32),
@@ -349,4 +356,15 @@ impl TIFFReader {
         // Return the output Vec.
         Ok(img)
     }
+}
+
+enum ImageSizeData {
+    Tiles {
+        tile_width: usize,
+    },
+    Image {
+        strip_offsets: IFDEntry,
+        strip_row_byte_countt: IFDEntry,
+        rows_per_strip: u32,
+    },
 }

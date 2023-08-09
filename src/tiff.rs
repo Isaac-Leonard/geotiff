@@ -90,7 +90,7 @@ impl IFD {
 
 /// A single entry within an image file directory (IDF). It consists of a tag, a type, and several
 /// tag values.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IFDEntry {
     pub tag: TIFFTag,
     pub tpe: TagType,
@@ -101,6 +101,10 @@ pub struct IFDEntry {
 
 /// Implementations for the IFD struct.
 impl IFD {
+    pub fn get(&self, tag: TIFFTag) -> Option<IFDEntry> {
+        self.entries.iter().find(|&e| e.tag == tag).cloned()
+    }
+
     pub fn get_image_length(&self) -> Result<usize> {
         self.entries
             .iter()
@@ -138,6 +142,7 @@ pub struct GeoKeyDirectoryInfo {
     pub minor_revision: u16,
     pub number_of_keys: u16,
 }
+
 /// Decodes an u16 value into a TIFFTag.
 pub fn decode_tag(value: u16) -> Option<TIFFTag> {
     TIFFTag::from_u16(value)

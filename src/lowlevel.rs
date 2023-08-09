@@ -25,7 +25,7 @@ enum_from_primitive! {
 
 enum_from_primitive! {
     #[repr(u16)]
-    #[derive(Debug,PartialEq)]
+    #[derive(Debug,PartialEq,Clone)]
     pub enum TagType {
         Byte           = 1,
         ASCII          = 2,
@@ -61,7 +61,7 @@ pub fn tag_size(t: &TagType) -> u32 {
 }
 
 /// All the possible values of tags.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TagValue {
     Byte(Bytes),
     Ascii(Ascii),
@@ -82,6 +82,24 @@ impl TagValue {
             Some(*x)
         } else {
             None
+        }
+    }
+
+    pub fn as_unsigned_int(&self) -> Option<usize> {
+        match self {
+            Self::Byte(x) => Some(*x as usize),
+            Self::Short(x) => Some(*x as usize),
+            Self::Long(x) => Some(*x as usize),
+            _ => None,
+        }
+    }
+
+    pub fn as_signed_int(&self) -> Option<usize> {
+        match self {
+            Self::SignedByte(x) => Some(*x as usize),
+            Self::SignedShort(x) => Some(*x as usize),
+            Self::SignedLong(x) => Some(*x as usize),
+            _ => None,
         }
     }
 }
