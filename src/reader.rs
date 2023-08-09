@@ -437,6 +437,7 @@ impl TIFFReader {
             let start_x = tile_col * tile_width;
             let mut curr_x = start_x;
             let _end_x = (tile_col + 1) * tile_width;
+            let max_y = tiles_down * tile_length;
             let start_y = max_y + 1 - (tile_row + 1) * tile_length;
             let mut curr_y = start_y;
             let end_y = max_y - tile_row * tile_length;
