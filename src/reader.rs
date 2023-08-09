@@ -446,25 +446,25 @@ impl TIFFReader {
                 let v = self.read_n(reader, image_depth as u64);
                 if curr_x >= image_width || curr_y >= image_length {
                     curr_z += 1;
-                    if curr_z >= img[curr_x][curr_y].len() {
+                    if curr_z >= img[curr_y][curr_x].len() {
                         curr_z = 0;
-                        curr_y += 1;
-                    }
-                    if curr_y >= end_y {
-                        curr_y = 0;
                         curr_x += 1;
+                    }
+                    if curr_x >= end_x {
+                        curr_x = 0;
+                        curr_y += 1;
                     }
                     continue;
                 }
-                img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
+                img[curr_y][curr_x].push(self.vec_to_value::<Endian>(v));
                 curr_z += 1;
-                if curr_z >= img[curr_x][curr_y].len() {
+                if curr_z >= img[curr_y][curr_x].len() {
                     curr_z = 0;
-                    curr_y += 1;
-                }
-                if curr_y >= end_y {
-                    curr_y = 0;
                     curr_x += 1;
+                }
+                if curr_x >= end_x {
+                    curr_x = 0;
+                    curr_y += 1;
                 }
             }
         }
