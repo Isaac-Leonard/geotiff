@@ -39,26 +39,26 @@ impl IFD {
                 let _directory_version = x.value[0].as_short().ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "key_directory_version not a short",
-                ))?;
+                ));
                 let _revision = x.value[1].as_short().ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "key_revision not a short",
-                ))?;
+                ));
                 let _minor_revision = x.value[2].as_short().ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "minor_revision not a short",
-                ))?;
+                ));
                 let number_of_keys = x.value[3].as_short().ok_or(Error::new(
                     ErrorKind::InvalidData,
                     "number_of_keys not a short",
-                ))?;
+                )).unwrap();
 
                 x.value
                     .iter()
                     .skip(4)
                     .take(number_of_keys as usize * 4)
                     .array_chunks::<4>()
-                    .map(|[id, location, count, val_or_offset]| {
+                    .filter_map(|[id, location, count, val_or_offset]| {
                         println!("parsing key");
                         // Assume no extra values are needed for now, aka location=0 and count =1
                         if location.as_unsigned_int()? != 0 && count.as_unsigned_int()? != 1 {
@@ -78,13 +78,9 @@ impl IFD {
                             x => GeoKey::Unknown(x, value),
                         })
                     })
-                    .collect::<Option<Vec<_>>>()
-                    .ok_or(Error::new(
-                        ErrorKind::InvalidData,
-                        "Could not parse geo keys properly",
-                    ))
+                    .collect::<Vec<_>>()
             })
-            .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))?
+            .ok_or(Error::new(ErrorKind::InvalidData, "geo key directory not found."))
     }
 }
 
