@@ -270,11 +270,11 @@ impl TIFFReader {
         let _tile_byte_count = ifd.get(TIFFTag::TileByteCountTag);
         let _plainar_configuration = ifd.get(TIFFTag::PlanarConfigurationTag);
         match strip_offsets.zip(strip_row_byte_counts) {
-            Some((strip_offsets, strip_row_byte_countt)) => ImageSizeData::Image {
+            Some((strip_offsets, strip_row_byte_countt)) => ImageSizeData::Image(StripImageData {
                 strip_offsets,
                 strip_row_byte_countt,
                 rows_per_strip,
-            },
+            }),
             _ => panic!("Tiled data not supported yet"),
         }
     }
@@ -283,24 +283,35 @@ impl TIFFReader {
     ///
     /// As for now, the following assumptions are made:
     /// * No compression is used, i.e., CompressionTag == 1.
-    fn read_image_data<Endian: ByteOrder>(
+    fn read_image_data<T: ByteOrder>(
         &self,
         reader: &mut dyn SeekableReader,
         ifd: &IFD,
     ) -> Result<Vec<Vec<Vec<usize>>>> {
+        let image_size_data = self.get_image_size_data(ifd);
+        match image_size_data {
+            ImageSizeData::Tiles { .. } => panic!("Tiles not supported"),
+            ImageSizeData::Image(specifications) => {
+                self.read_strip_image::<T>(reader, ifd, specifications)
+            }
+        }
+    }
+
+    fn read_strip_image<Endian: ByteOrder>(
+        &self,
+        reader: &mut dyn SeekableReader,
+        ifd: &IFD,
+        specifications: StripImageData,
+    ) -> Result<Vec<Vec<Vec<usize>>>> {
+        let StripImageData {
+            rows_per_strip: _,
+            strip_offsets,
+            strip_row_byte_countt: strip_row_byte_counts,
+        } = specifications;
         // Image size and depth.
         let image_length = ifd.get_image_length()?;
         let image_width = ifd.get_image_width()?;
         let image_depth = ifd.get_bytes_per_sample()?;
-        let image_size_data = self.get_image_size_data(ifd);
-        let (_rows_per_strip, strip_row_byte_countts, strip_offsets) = match image_size_data {
-            ImageSizeData::Tiles { .. } => panic!("Tiles not supported"),
-            ImageSizeData::Image {
-                rows_per_strip,
-                strip_offsets,
-                strip_row_byte_countt,
-            } => (rows_per_strip, strip_offsets, strip_row_byte_countt),
-        };
         // Create the output Vec.
 
         // TODO The img Vec should optimally not be of usize, but of size "image_depth".
@@ -321,8 +332,8 @@ impl TIFFReader {
                 _ => (),
             };
         }
-        let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_row_byte_countts.value.len());
-        for v in &strip_row_byte_countts.value {
+        let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_row_byte_counts.value.len());
+        for v in &strip_row_byte_counts.value {
             match v {
                 TagValue::Long(v) => byte_counts.push(*v),
                 TagValue::Short(v) => byte_counts.push(*v as u32),
@@ -359,12 +370,16 @@ impl TIFFReader {
 }
 
 enum ImageSizeData {
-    Tiles {
-        tile_width: usize,
-    },
-    Image {
-        strip_offsets: IFDEntry,
-        strip_row_byte_countt: IFDEntry,
-        rows_per_strip: u32,
-    },
+    Tiles(TiledImageData),
+    Image(StripImageData),
+}
+
+struct StripImageData {
+    strip_offsets: IFDEntry,
+    strip_row_byte_countt: IFDEntry,
+    rows_per_strip: u32,
+}
+
+struct TiledImageData {
+    tile_width: usize,
 }
