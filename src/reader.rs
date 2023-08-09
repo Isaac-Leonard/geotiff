@@ -264,10 +264,6 @@ impl TIFFReader {
         // For each strip, its offset within the TIFF file.
         let strip_offsets = ifd.get(TIFFTag::StripOffsetsTag);
         let strip_row_byte_counts = ifd.get(TIFFTag::StripByteCountsTag);
-        let _tile_width = ifd.get(TIFFTag::TileWidthTag);
-        let _tile_height = ifd.get(TIFFTag::TileHeightTag);
-        let _tile_offsets = ifd.get(TIFFTag::TileOffsetsTag);
-        let _tile_byte_count = ifd.get(TIFFTag::TileByteCountTag);
         let _plainar_configuration = ifd.get(TIFFTag::PlanarConfigurationTag);
         match strip_offsets.zip(strip_row_byte_counts) {
             Some((strip_offsets, strip_row_byte_countt)) => ImageSizeData::Image(StripImageData {
@@ -275,7 +271,32 @@ impl TIFFReader {
                 strip_row_byte_countt,
                 rows_per_strip,
             }),
-            _ => panic!("Tiled data not supported yet"),
+            _ => {
+                let tile_width = ifd
+                    .get(TIFFTag::TileWidthTag)
+                    .expect("Not enough tile or strip tags found")
+                    .value[0]
+                    .as_unsigned_int()
+                    .unwrap();
+                let tile_length = ifd
+                    .get(TIFFTag::TileHeightTag)
+                    .expect("Not enough tile or strip tags found")
+                    .value[0]
+                    .as_unsigned_int()
+                    .expect("Not enough tile or strip tags found");
+                let tile_bytes_offsets = ifd
+                    .get(TIFFTag::TileOffsetsTag)
+                    .expect("Not enough tile or strip tags found");
+                let tile_bytes_counts = ifd
+                    .get(TIFFTag::TileByteCountTag)
+                    .expect("Not enough tile or strip tags found");
+                ImageSizeData::Tiles(TiledImageData {
+                    tile_width,
+                    tile_length,
+                    tile_bytes_offsets,
+                    tile_bytes_counts,
+                })
+            }
         }
     }
 
@@ -290,7 +311,9 @@ impl TIFFReader {
     ) -> Result<Vec<Vec<Vec<usize>>>> {
         let image_size_data = self.get_image_size_data(ifd);
         match image_size_data {
-            ImageSizeData::Tiles { .. } => panic!("Tiles not supported"),
+            ImageSizeData::Tiles(specifications) => {
+                self.read_tiled_image::<T>(reader, ifd, specifications)
+            }
             ImageSizeData::Image(specifications) => {
                 self.read_strip_image::<T>(reader, ifd, specifications)
             }
@@ -373,8 +396,8 @@ impl TIFFReader {
         let TiledImageData {
             tile_width,
             tile_length,
-            tyle_bytes_offsets: tile_bytes_offsets,
-            tyle_bytes_counts: tile_bytes_counts,
+            tile_bytes_offsets,
+            tile_bytes_counts,
         } = specifications;
         // Image size and depth.
         let image_length = ifd.get_image_length()?;
@@ -464,6 +487,6 @@ struct StripImageData {
 struct TiledImageData {
     tile_width: usize,
     tile_length: usize,
-    tyle_bytes_counts: IFDEntry,
-    tyle_bytes_offsets: IFDEntry,
+    tile_bytes_counts: IFDEntry,
+    tile_bytes_offsets: IFDEntry,
 }
