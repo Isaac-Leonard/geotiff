@@ -450,7 +450,7 @@ impl TIFFReader {
                 if curr_x >= image_width || curr_y >= image_length {
                     eprintln!("safely Outside of image");
                     curr_z += 1;
-                    if curr_z >= img[curr_y][curr_x].len() {
+                    if curr_z >= img[0][0].len() {
                         curr_z = 0;
                         curr_x += 1;
                     }
