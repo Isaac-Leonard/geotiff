@@ -61,8 +61,8 @@ impl IFD {
                     .map(|[id, location, count, val_or_offset]| {
                         println!("parsing key");
                         // Assume no extra values are needed for now, aka location=0 and count =1
-                        if location.as_short()? != 0 && count.as_short()? != 1 {
-                            panic!("Cannot yet handle geotiffs with non-short valued keys")
+                        if location.as_unsigned_int()? != 0 && count.as_unsigned_int()? != 1 {
+                            panic!("Cannot yet handle geotiffs with non-integer valued keys")
                         };
                         let id = id.as_short()?;
                         let value = val_or_offset.as_short()?;
