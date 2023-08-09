@@ -332,14 +332,13 @@ impl TIFFReader {
                 _ => (),
             };
         }
-        let mut byte_counts: Vec<u32> = Vec::with_capacity(strip_row_byte_counts.value.len());
-        for v in &strip_row_byte_counts.value {
-            match v {
-                TagValue::Long(v) => byte_counts.push(*v),
-                TagValue::Short(v) => byte_counts.push(*v as u32),
-                _ => (),
-            };
-        }
+        // Unwrap here, we know it has to be a long or short or if not somethings very wrong
+        // Error handling code would just be removed when we fix how individual tag values are represented
+        let byte_counts = strip_row_byte_counts
+            .value
+            .iter()
+            .map(|v| v.as_unsigned_int().unwrap() as u32)
+            .collect::<Vec<_>>();
         // A bit much boilerplate, but should be okay and fast.
         let mut curr_x = 0;
         let mut curr_y = 0;
@@ -348,9 +347,6 @@ impl TIFFReader {
             reader.seek(SeekFrom::Start(*offset as u64))?;
             for _i in 0..(*byte_count / image_depth as u32) {
                 let v = self.read_n(reader, image_depth as u64);
-                //                println!("x {:?} len {:?}", curr_x, img.len());
-                //                println!("y {:?} wid {:?}", curr_y, img[0].len());
-                //                println!("z {:?} dep {:?}", curr_z, img[0][0].len());
                 img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
                 curr_z += 1;
                 if curr_z >= img[curr_x][curr_y].len() {
@@ -358,6 +354,91 @@ impl TIFFReader {
                     curr_y += 1;
                 }
                 if curr_y >= img[curr_x].len() {
+                    curr_y = 0;
+                    curr_x += 1;
+                }
+            }
+        }
+
+        // Return the output Vec.
+        Ok(img)
+    }
+
+    fn read_tiled_image<Endian: ByteOrder>(
+        &self,
+        reader: &mut dyn SeekableReader,
+        ifd: &IFD,
+        specifications: TiledImageData,
+    ) -> Result<Vec<Vec<Vec<usize>>>> {
+        let TiledImageData {
+            tile_width,
+            tile_length,
+            tyle_bytes_offsets: tile_bytes_offsets,
+            tyle_bytes_counts: tile_bytes_counts,
+        } = specifications;
+        // Image size and depth.
+        let image_length = ifd.get_image_length()?;
+        let image_width = ifd.get_image_width()?;
+        let image_depth = ifd.get_bytes_per_sample()?;
+        // Create the output Vec.
+
+        // TODO The img Vec should optimally not be of usize, but of size "image_depth".
+        let mut img: Vec<Vec<Vec<usize>>> = Vec::with_capacity(image_length);
+        for i in 0..image_length {
+            img.push(Vec::with_capacity(image_width));
+            for _j in 0..image_width {
+                img[i].push(Vec::with_capacity(image_depth));
+            }
+        }
+
+        // Read tile after tile, and copy it into the output Vec.
+        // Unwrap here, we know it has to be a long or short or if not somethings very wrong
+        // Error handling code would just be removed when we fix how individual tag values are represented
+        let offsets: Vec<u32> = tile_bytes_offsets
+            .value
+            .iter()
+            .map(|v| v.as_unsigned_int().unwrap() as u32)
+            .collect();
+        let byte_counts = tile_bytes_counts
+            .value
+            .iter()
+            .map(|v| v.as_unsigned_int().unwrap() as u32)
+            .collect::<Vec<_>>();
+        // A bit much boilerplate, but should be okay and fast.
+        let mut curr_z = 0;
+        let tiles_across = (image_width + tile_width - 1) / tile_width;
+        let tiles_down = (image_length + tile_length - 1) / tile_length;
+        for (nth_tile, (offset, byte_count)) in offsets.iter().zip(byte_counts.iter()).enumerate() {
+            let tile_row = nth_tile % tiles_across;
+            let tile_col = (nth_tile - tile_row) / tiles_across;
+            let start_x = tile_col * tile_width;
+            let mut curr_x = start_x;
+            let _end_x = (tile_col + 1) * tile_width;
+            let start_y = tiles_down * tile_length - (tile_row + 1) * tile_length;
+            let mut curr_y = start_y;
+            let end_y = tiles_down * tile_length - tile_row * tile_length;
+            reader.seek(SeekFrom::Start(*offset as u64))?;
+            for _i in 0..(*byte_count / image_depth as u32) {
+                let v = self.read_n(reader, image_depth as u64);
+                if curr_x >= image_width || curr_y >= image_length {
+                    curr_z += 1;
+                    if curr_z >= img[curr_x][curr_y].len() {
+                        curr_z = 0;
+                        curr_y += 1;
+                    }
+                    if curr_y >= end_y {
+                        curr_y = 0;
+                        curr_x += 1;
+                    }
+                    continue;
+                }
+                img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
+                curr_z += 1;
+                if curr_z >= img[curr_x][curr_y].len() {
+                    curr_z = 0;
+                    curr_y += 1;
+                }
+                if curr_y >= end_y {
                     curr_y = 0;
                     curr_x += 1;
                 }
@@ -382,4 +463,7 @@ struct StripImageData {
 
 struct TiledImageData {
     tile_width: usize,
+    tile_length: usize,
+    tyle_bytes_counts: IFDEntry,
+    tyle_bytes_offsets: IFDEntry,
 }
