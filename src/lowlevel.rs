@@ -238,6 +238,10 @@ enum_from_primitive! {
 
         GDALMETADATA                 = 0xA480,
         GDALNODATA                   = 0xA481,
+        TileWidthTag                 = 0x0142,
+        TileHeightTag                = 0x0143,
+        TileOffsetsTag               = 0x0144,
+        TileByteCountTag             = 0x0145
     }
 }
 
