@@ -398,10 +398,10 @@ impl TIFFReader {
             tile_length,
             tile_bytes_offsets,
             tile_bytes_counts,
-        } = specifications;
+        } = dbg!(specifications);
         // Image size and depth.
-        let image_length = ifd.get_image_length()?;
-        let image_width = ifd.get_image_width()?;
+        let image_length = dbg!(ifd.get_image_length()?);
+        let image_width = dbg!(ifd.get_image_width()?);
         let image_depth = ifd.get_bytes_per_sample()?;
         // Create the output Vec.
 
@@ -429,8 +429,8 @@ impl TIFFReader {
             .collect::<Vec<_>>();
         // A bit much boilerplate, but should be okay and fast.
         let mut curr_z = 0;
-        let tiles_across = (image_width + tile_width - 1) / tile_width;
-        let tiles_down = (image_length + tile_length - 1) / tile_length;
+        let tiles_across = (image_width + tile_width - 1) / dbg!(tile_width);
+        let tiles_down = (image_length + tile_length - 1) / dbg!(tile_length);
         for (nth_tile, (offset, byte_count)) in offsets.iter().zip(byte_counts.iter()).enumerate() {
             let tile_row = nth_tile % tiles_across;
             let tile_col = (nth_tile - tile_row) / tiles_across;
@@ -485,6 +485,7 @@ struct StripImageData {
     rows_per_strip: u32,
 }
 
+#[derive(Debug)]
 struct TiledImageData {
     tile_width: usize,
     tile_length: usize,
