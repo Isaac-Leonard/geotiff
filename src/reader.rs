@@ -5,8 +5,10 @@ use std::path::Path;
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
 
-use lowlevel::{tag_size, TIFFByteOrder, TIFFTag, TagType, TagValue};
+use lowlevel::{tag_size, TIFFByteOrder, TIFFTag, TagType};
 use tiff::{decode_tag, decode_tag_type, IFDEntry, IFD, TIFF};
+
+use crate::lowlevel::TaggedData;
 
 /// A helper trait to indicate that something needs to be seekable and readable.
 pub trait SeekableReader: Seek + Read {}
@@ -130,27 +132,41 @@ impl TIFFReader {
     /// Converts a Vec<u8> into a TagValue, depending on the type of the tag. In the TIFF file
     /// format, each tag type indicates which value it stores (e.g., a byte, ascii, or long value).
     /// This means that the tag values have to be read taking the tag type into consideration.
-    fn vec_to_tag_value<Endian: ByteOrder>(&self, vec: Vec<u8>, tpe: &TagType) -> TagValue {
-        let len = vec.len();
+    fn bytes_to_tag_value<Endian: ByteOrder>(&self, vec: Vec<u8>, tpe: &TagType) -> TaggedData {
+        let _len = vec.len();
         match tpe {
-            TagType::Byte => TagValue::Byte(vec[0]),
-            TagType::ASCII => TagValue::Ascii(String::from_utf8_lossy(&vec).to_string()),
-            TagType::Short => TagValue::Short(Endian::read_u16(&vec[..])),
-            TagType::Long => TagValue::Long(Endian::read_u32(&vec[..])),
-            TagType::Rational => TagValue::Rational((
-                Endian::read_u32(&vec[..(len / 2)]),
-                Endian::read_u32(&vec[(len / 2)..]),
-            )),
-            &TagType::SignedByte => TagValue::SignedByte(vec[0] as i8),
-            &TagType::SignedShort => TagValue::SignedShort(Endian::read_i16(&vec[..])),
-            &TagType::SignedLong => TagValue::SignedLong(Endian::read_i32(&vec[..])),
-            &TagType::SignedRational => TagValue::SignedRational((
-                Endian::read_i32(&vec[..(len / 2)]),
-                Endian::read_i32(&vec[(len / 2)..]),
-            )),
-            &TagType::Float => TagValue::Float(Endian::read_f32(&vec[..])),
-            &TagType::Double => TagValue::Double(Endian::read_f64(&vec[..])),
-            &TagType::Undefined => TagValue::Byte(0),
+            TagType::Byte => TaggedData::Byte(vec),
+            TagType::ASCII => TaggedData::Ascii(String::from_utf8_lossy(&vec).to_string()),
+            TagType::Short => {
+                TaggedData::Short(vec.chunks_exact(2).map(Endian::read_u16).collect())
+            }
+            TagType::Long => TaggedData::Long(vec.chunks_exact(4).map(Endian::read_u32).collect()),
+            TagType::Rational => TaggedData::Rational(
+                vec.chunks_exact(4)
+                    .array_chunks::<2>()
+                    .map(|[num, den]| (Endian::read_u32(num), Endian::read_u32(den)))
+                    .collect(),
+            ),
+            &TagType::SignedByte => TaggedData::SignedByte(vec.iter().map(|x| *x as i8).collect()),
+            &TagType::SignedShort => {
+                TaggedData::SignedShort(vec.chunks_exact(2).map(Endian::read_i16).collect())
+            }
+            &TagType::SignedLong => {
+                TaggedData::SignedLong(vec.chunks_exact(4).map(Endian::read_i32).collect())
+            }
+            &TagType::SignedRational => TaggedData::SignedRational(
+                vec.chunks_exact(4)
+                    .array_chunks::<2>()
+                    .map(|[num, den]| (Endian::read_i32(num), Endian::read_i32(den)))
+                    .collect(),
+            ),
+            &TagType::Float => {
+                TaggedData::Float(vec.chunks_exact(4).map(Endian::read_f32).collect())
+            }
+            &TagType::Double => {
+                TaggedData::Double(vec.chunks_exact(8).map(Endian::read_f64).collect())
+            }
+            &TagType::Undefined => TaggedData::Byte(Vec::new()),
         }
     }
 
@@ -203,37 +219,30 @@ impl TIFFReader {
         let value_size = tag_size(&tpe);
 
         // Let's get the value(s) of this tag.
-        let tot_size = count_value * value_size;
+        let total_size = count_value * value_size;
         /*        println!(
             "{:04X} {:04X} {:08X} {:08X} {:?} {:?} {:?} {:?}",
             tag_value, tpe_value, count_value, value_offset_value, tag, tpe, value_size, tot_size
         );*/
-
-        let mut values = Vec::with_capacity(count_value as usize);
-        if tot_size <= 4 {
+        let number_of_bytes_to_read = (value_size * count_value) as u64;
+        let values: Vec<u8> = if total_size <= 4 {
             // Can directly read the value at the value field. For simplicity, we simply reset
             // the reader to the correct position.
             reader.seek(SeekFrom::Start(ifd_offset + 12 * entry_number as u64 + 8))?;
-            for _ in 0..count_value as usize {
-                let value = self.read_n(reader, value_size as u64);
-                values.push(self.vec_to_tag_value::<Endian>(value, &tpe));
-            }
+            self.read_n(reader, number_of_bytes_to_read)
         } else {
             // Have to read from the address pointed at by the value field.
             reader.seek(SeekFrom::Start(value_offset_value as u64))?;
-            for _ in 0..count_value as usize {
-                let value = self.read_n(reader, value_size as u64);
-                values.push(self.vec_to_tag_value::<Endian>(value, &tpe));
-            }
-        }
+            self.read_n(reader, number_of_bytes_to_read)
+        };
 
         // Create IFD entry.
         let ifd_entry = IFDEntry {
             tag,
-            tpe,
             count: count_value,
             value_offset: value_offset_value,
-            value: values,
+            value: self.bytes_to_tag_value::<Endian>(values, &tpe),
+            tpe,
         };
 
         /*        println!(
@@ -254,12 +263,16 @@ impl TIFFReader {
         let rows_per_strip = ifd
             .get(TIFFTag::RowsPerStripTag)
             // TODO: Should maybe error here if that fails
-            .and_then(|x| x.value[0].as_unsigned_int())
-            .map(|x| x as u32)
+            .and_then(|x| x.value.as_unsigned_ints())
+            .and_then(|x| x.first().copied().map(|x| x as u32))
             .unwrap_or_else(u32::max_value);
         // For each strip, its offset within the TIFF file.
-        let strip_offsets = ifd.get(TIFFTag::StripOffsetsTag);
-        let strip_row_byte_counts = ifd.get(TIFFTag::StripByteCountsTag);
+        let strip_offsets = ifd
+            .get(TIFFTag::StripOffsetsTag)
+            .and_then(|x| x.value.as_unsigned_ints());
+        let strip_row_byte_counts = ifd
+            .get(TIFFTag::StripByteCountsTag)
+            .and_then(|x| x.value.as_unsigned_ints());
         let _plainar_configuration = ifd.get(TIFFTag::PlanarConfigurationTag);
         match strip_offsets.zip(strip_row_byte_counts) {
             Some((strip_offsets, strip_row_byte_countt)) => ImageSizeData::Image(StripImageData {
@@ -270,15 +283,13 @@ impl TIFFReader {
             _ => {
                 let tile_width = ifd
                     .get(TIFFTag::TileWidthTag)
-                    .expect("Not enough tile or strip tags found")
-                    .value[0]
-                    .as_unsigned_int()
-                    .unwrap();
+                    .and_then(|x| x.value.as_unsigned_ints())
+                    .and_then(|x| x.first().copied())
+                    .expect("Not enough tile or strip tags found");
                 let tile_length = ifd
                     .get(TIFFTag::TileHeightTag)
-                    .expect("Not enough tile or strip tags found")
-                    .value[0]
-                    .as_unsigned_int()
+                    .and_then(|x| x.value.as_unsigned_ints())
+                    .and_then(|x| x.first().copied())
                     .expect("Not enough tile or strip tags found");
                 let tile_bytes_offsets = ifd
                     .get(TIFFTag::TileOffsetsTag)
@@ -343,28 +354,15 @@ impl TIFFReader {
         }
 
         // Read strip after strip, and copy it into the output Vec.
-        let mut offsets: Vec<u32> = Vec::with_capacity(strip_offsets.value.len());
-        for v in &strip_offsets.value {
-            match v {
-                TagValue::Long(v) => offsets.push(*v),
-                TagValue::Short(v) => offsets.push(*v as u32),
-                _ => (),
-            };
-        }
-        // Unwrap here, we know it has to be a long or short or if not somethings very wrong
-        // Error handling code would just be removed when we fix how individual tag values are represented
-        let byte_counts = strip_row_byte_counts
-            .value
-            .iter()
-            .map(|v| v.as_unsigned_int().unwrap() as u32)
-            .collect::<Vec<_>>();
+        let offsets = strip_offsets.clone();
+        let byte_counts = strip_row_byte_counts;
         // A bit much boilerplate, but should be okay and fast.
         let mut curr_x = 0;
         let mut curr_y = 0;
         let mut curr_z = 0;
         for (offset, byte_count) in offsets.iter().zip(byte_counts.iter()) {
             reader.seek(SeekFrom::Start(*offset as u64))?;
-            for _i in 0..(*byte_count / image_depth as u32) {
+            for _i in 0..(*byte_count / image_depth) {
                 let v = self.read_n(reader, image_depth as u64);
                 img[curr_x][curr_y].push(self.vec_to_value::<Endian>(v));
                 curr_z += 1;
@@ -413,16 +411,17 @@ impl TIFFReader {
         // Read tile after tile, and copy it into the output Vec.
         // Unwrap here, we know it has to be a long or short or if not somethings very wrong
         // Error handling code would just be removed when we fix how individual tag values are represented
-        let offsets: Vec<u32> = tile_bytes_offsets
+        let offsets = tile_bytes_offsets
             .value
-            .iter()
-            .map(|v| v.as_unsigned_int().unwrap() as u32)
-            .collect();
+            .as_unsigned_ints()
+            .ok_or(Error::new(ErrorKind::InvalidData, "Couldn't read offsets"))?;
         let byte_counts = tile_bytes_counts
             .value
-            .iter()
-            .map(|v| v.as_unsigned_int().unwrap() as u32)
-            .collect::<Vec<_>>();
+            .as_unsigned_ints()
+            .ok_or(Error::new(
+                ErrorKind::InvalidData,
+                "Couldn't read byte counts",
+            ))?;
         // A bit much boilerplate, but should be okay and fast.
         let mut curr_z = 0;
         let tiles_across = (image_width + tile_width - 1) / tile_width;
@@ -438,7 +437,7 @@ impl TIFFReader {
             let mut curr_y = start_y;
             let _end_y = max_y - tile_row * tile_length;
             reader.seek(SeekFrom::Start(*offset as u64))?;
-            for _i in 0..(*byte_count / image_depth as u32) {
+            for _i in 0..(*byte_count / image_depth) {
                 let v = self.read_n(reader, image_depth as u64);
                 if curr_x >= image_width || curr_y >= image_length {
                     curr_z += 1;
@@ -476,8 +475,8 @@ enum ImageSizeData {
 }
 
 struct StripImageData {
-    strip_offsets: IFDEntry,
-    strip_row_byte_countt: IFDEntry,
+    strip_offsets: Vec<usize>,
+    strip_row_byte_countt: Vec<usize>,
     rows_per_strip: u32,
 }
 

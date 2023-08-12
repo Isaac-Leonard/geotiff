@@ -62,43 +62,43 @@ pub fn tag_size(t: &TagType) -> u32 {
 
 /// All the possible values of tags.
 #[derive(Debug, Clone)]
-pub enum TagValue {
-    Byte(Bytes),
+pub enum TaggedData {
+    Byte(Vec<Bytes>),
     Ascii(Ascii),
-    Short(Short),
-    Long(Long),
-    Rational(Rational),
-    SignedByte(SignedByte),
-    SignedShort(SignedShort),
-    SignedLong(SignedLong),
-    SignedRational(SignedRational),
-    Float(Float),
-    Double(Double),
+    Short(Vec<Short>),
+    Long(Vec<Long>),
+    Rational(Vec<Rational>),
+    SignedByte(Vec<SignedByte>),
+    SignedShort(Vec<SignedShort>),
+    SignedLong(Vec<SignedLong>),
+    SignedRational(Vec<SignedRational>),
+    Float(Vec<Float>),
+    Double(Vec<Double>),
 }
 
-impl TagValue {
-    pub fn as_short(&self) -> Option<u16> {
+impl TaggedData {
+    pub fn as_shorts(&self) -> Option<Vec<u16>> {
         if let Self::Short(x) = self {
-            Some(*x)
+            Some(x.clone())
         } else {
             None
         }
     }
 
-    pub fn as_unsigned_int(&self) -> Option<usize> {
+    pub fn as_unsigned_ints(&self) -> Option<Vec<usize>> {
         match self {
-            Self::Byte(x) => Some(*x as usize),
-            Self::Short(x) => Some(*x as usize),
-            Self::Long(x) => Some(*x as usize),
+            Self::Byte(x) => Some(x.iter().map(|x| *x as usize).collect()),
+            Self::Short(x) => Some(x.iter().map(|x| *x as usize).collect()),
+            Self::Long(x) => Some(x.iter().map(|x| *x as usize).collect()),
             _ => None,
         }
     }
 
-    pub fn as_signed_int(&self) -> Option<usize> {
+    pub fn as_signed_int(&self) -> Option<Vec<isize>> {
         match self {
-            Self::SignedByte(x) => Some(*x as usize),
-            Self::SignedShort(x) => Some(*x as usize),
-            Self::SignedLong(x) => Some(*x as usize),
+            Self::SignedByte(x) => Some(x.iter().map(|x| *x as isize).collect()),
+            Self::SignedShort(x) => Some(x.iter().map(|x| *x as isize).collect()),
+            Self::SignedLong(x) => Some(x.iter().map(|x| *x as isize).collect()),
             _ => None,
         }
     }

@@ -34,26 +34,23 @@ impl IFD {
     pub fn get_geo_keys(&self) -> Result<Vec<GeoKey>> {
         self.entries
             .iter()
-            .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
-            .map(|x| {
-                let mut values=                x.value                    .iter()                    .array_chunks::<4>();
+            .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag).and_then(|x|x.value.as_shorts())
+            .map(|values| {
+                let mut values=values.iter().cloned().array_chunks::<4>();
                 // If this unwrap fails then somethings very wrong
                 let directory_header=values.next().unwrap();
-                let _directory_version = directory_header[0].as_short();
-                let _revision = directory_header[1].as_short();
-                let _minor_revision = directory_header[2].as_short();
-                // This unwrap will be removed in a future version and currently is certain to succeed
-                let number_of_keys = directory_header[3].as_short().unwrap() as usize;
-                let tags=values.clone().take(number_of_keys);
-    let _shorts_array:Vec<_>=values.skip(number_of_keys).flatten().collect();
-                tags.filter_map(|[id, location, count, val_or_offset]| {
+                let _directory_version = directory_header[0];
+                let _revision = directory_header[1];
+                let _minor_revision = directory_header[2];
+                let number_of_keys = directory_header[3] as usize;
+			                let tags= values.clone().take(number_of_keys);
+				let _shorts_array:Vec<_>=values.skip(number_of_keys).flatten().collect();
+                tags.filter_map(|[id, location, count, value]| {
                         // Assume no extra values are needed for now, aka location=0 and count =1
-                        if location.as_unsigned_int()? != 0 && count.as_unsigned_int()? != 1 {
-                            eprintln!("Cannot yet handle geotiffs with non-integer valued keys, id={}, location={}, count={}",id.as_unsigned_int()?, location.as_unsigned_int()? != 0 ,count.as_unsigned_int()?);
+                        if location!= 0 && count != 1 {
+                            eprintln!("Cannot yet handle geotiffs with non-integer valued keys, id={}, location={}, count={}",id, location, count);
                             return None;
                         };
-                        let id = id.as_short()?;
-                        let value = val_or_offset.as_short()?;
                         Some(GeoKey::new(id,value))
                     })
                     .collect::<Vec<_>>()
@@ -70,7 +67,7 @@ pub struct IFDEntry {
     pub tpe: TagType,
     pub count: Long,
     pub value_offset: Long,
-    pub value: Vec<TagValue>,
+    pub value: TaggedData,
 }
 
 /// Implementations for the IFD struct.
@@ -83,7 +80,8 @@ impl IFD {
         self.entries
             .iter()
             .find(|&e| e.tag == TIFFTag::ImageLengthTag)
-            .map(extract_value_or_0)
+            .and_then(|x| x.value.as_unsigned_ints())
+            .and_then(|x| x.first().copied())
             .ok_or(Error::new(
                 ErrorKind::InvalidData,
                 "Image length not found.",
@@ -94,7 +92,8 @@ impl IFD {
         self.entries
             .iter()
             .find(|&e| e.tag == TIFFTag::ImageWidthTag)
-            .map(extract_value_or_0)
+            .and_then(|tag| tag.value.as_unsigned_ints())
+            .and_then(|x| x.first().copied())
             .ok_or(Error::new(ErrorKind::InvalidData, "Image width not found."))
     }
 
@@ -102,7 +101,8 @@ impl IFD {
         self.entries
             .iter()
             .find(|&e| e.tag == TIFFTag::BitsPerSampleTag)
-            .map(extract_value_or_0)
+            .and_then(|tag| tag.value.as_unsigned_ints())
+            .and_then(|x| x.first().copied())
             // This gets bits, so need to turn into bytes
             .map(|x| x / 8)
             .ok_or(Error::new(ErrorKind::InvalidData, "Image depth not found."))
@@ -176,14 +176,6 @@ pub fn validate_required_tags_for(typ: &ImageType) -> Option<HashSet<TIFFTag>> {
                 .collect(),
         ),
         ImageType::YCbCr => None,
-    }
-}
-
-pub(crate) fn extract_value_or_0(value: &IFDEntry) -> usize {
-    match value.value[0] {
-        TagValue::Short(v) => v as usize,
-        TagValue::Long(v) => v as usize,
-        _ => 0_usize,
     }
 }
 
