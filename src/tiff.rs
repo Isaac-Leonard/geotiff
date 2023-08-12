@@ -59,7 +59,6 @@ impl IFD {
                     .take(number_of_keys as usize * 4)
                     .array_chunks::<4>()
                     .filter_map(|[id, location, count, val_or_offset]| {
-                        println!("parsing key");
                         // Assume no extra values are needed for now, aka location=0 and count =1
                         if location.as_unsigned_int()? != 0 && count.as_unsigned_int()? != 1 {
                             eprintln!("Cannot yet handle geotiffs with non-integer valued keys, id={}, location={}, count={}",id.as_unsigned_int()?, location.as_unsigned_int()? != 0 ,count.as_unsigned_int()?);
@@ -67,16 +66,7 @@ impl IFD {
                         };
                         let id = id.as_short()?;
                         let value = val_or_offset.as_short()?;
-                        Some(match id {
-                            1024 => GeoKey::GTModelTypeGeoKey(value),
-                            1025 => GeoKey::GTRasterTypeGeoKey(value),
-                            2048 => GeoKey::GeographicTypeGeoKey(value),
-                            2051 => GeoKey::GeogPrimeMeridianGeoKey(value),
-                            2052 => GeoKey::GeogLinearUnitsGeoKey(value),
-                            2053 => GeoKey::GeogLinearUnitSizeGeoKey(value),
-                            2054 => GeoKey::GeogAngularUnitsGeoKey(value),
-                            x => GeoKey::Unknown(x, value),
-                        })
+                        Some(GeoKey::new(id,value))
                     })
                     .collect::<Vec<_>>()
             })
@@ -214,10 +204,40 @@ pub enum GeoKey {
     GTModelTypeGeoKey(u16),
     GTRasterTypeGeoKey(u16),
     GeographicTypeGeoKey(u16),
-    GeogLinearUnitsGeoKey(u16),
-    GeogAngularUnitsGeoKey(u16),
     GeogGeodeticDatumGeoKey(u16),
     GeogPrimeMeridianGeoKey(u16),
+    GeogLinearUnitsGeoKey(u16),
     GeogLinearUnitSizeGeoKey(u16),
+    GeogAngularUnitsGeoKey(u16),
+    GeogAngularUnitSizeGeoKey(u16),
+    GeogEllipsoidGeoKey(u16),
+    GeogSemiMajorAxisGeoKey(u16),
+    GeogSemiMinorAxisGeoKey(u16),
+    GeogInvFlatteningGeoKey(u16),
+    GeogAzimuthUnitsGeoKey(u16),
+    GeogPrimeMeridianLongGeoKey(u16),
     Unknown(u16, u16),
+}
+
+impl GeoKey {
+    fn new(id: u16, value: u16) -> GeoKey {
+        match id {
+            1024 => GeoKey::GTModelTypeGeoKey(value),
+            1025 => GeoKey::GTRasterTypeGeoKey(value),
+            2048 => GeoKey::GeographicTypeGeoKey(value),
+            2050 => GeoKey::GeogGeodeticDatumGeoKey(value),
+            2051 => GeoKey::GeogPrimeMeridianGeoKey(value),
+            2052 => GeoKey::GeogLinearUnitsGeoKey(value),
+            2053 => GeoKey::GeogLinearUnitSizeGeoKey(value),
+            2054 => GeoKey::GeogAngularUnitsGeoKey(value),
+            2055 => GeoKey::GeogAngularUnitSizeGeoKey(value),
+            2056 => GeoKey::GeogEllipsoidGeoKey(value),
+            2057 => GeoKey::GeogSemiMajorAxisGeoKey(value),
+            2058 => GeoKey::GeogSemiMinorAxisGeoKey(value),
+            2059 => GeoKey::GeogInvFlatteningGeoKey(value),
+            2060 => GeoKey::GeogAzimuthUnitsGeoKey(value),
+            2061 => GeoKey::GeogPrimeMeridianLongGeoKey(value),
+            x => GeoKey::Unknown(x, value),
+        }
+    }
 }
