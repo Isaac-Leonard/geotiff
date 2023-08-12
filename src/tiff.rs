@@ -36,33 +36,21 @@ impl IFD {
             .iter()
             .find(|&e| e.tag == TIFFTag::GeoKeyDirectoryTag)
             .map(|x| {
-                let _directory_version = x.value[0].as_short().ok_or(Error::new(
-                    ErrorKind::InvalidData,
-                    "key_directory_version not a short",
-                ));
-                let _revision = x.value[1].as_short().ok_or(Error::new(
-                    ErrorKind::InvalidData,
-                    "key_revision not a short",
-                ));
-                let _minor_revision = x.value[2].as_short().ok_or(Error::new(
-                    ErrorKind::InvalidData,
-                    "minor_revision not a short",
-                ));
-                let number_of_keys = x.value[3].as_short().ok_or(Error::new(
-                    ErrorKind::InvalidData,
-                    "number_of_keys not a short",
-                )).unwrap();
-
-                x.value
-                    .iter()
-                    .skip(4)
-                    .take(number_of_keys as usize * 4)
-                    .array_chunks::<4>()
-                    .filter_map(|[id, location, count, val_or_offset]| {
+                let mut values=                x.value                    .iter()                    .array_chunks::<4>();
+                // If this unwrap fails then somethings very wrong
+                let directory_header=values.next().unwrap();
+                let _directory_version = directory_header[0].as_short();
+                let _revision = directory_header[1].as_short();
+                let _minor_revision = directory_header[2].as_short();
+                // This unwrap will be removed in a future version and currently is certain to succeed
+                let number_of_keys = directory_header[3].as_short().unwrap() as usize;
+                let tags=values.clone().take(number_of_keys);
+    let _shorts_array:Vec<_>=values.skip(number_of_keys).flatten().collect();
+                tags.filter_map(|[id, location, count, val_or_offset]| {
                         // Assume no extra values are needed for now, aka location=0 and count =1
                         if location.as_unsigned_int()? != 0 && count.as_unsigned_int()? != 1 {
                             eprintln!("Cannot yet handle geotiffs with non-integer valued keys, id={}, location={}, count={}",id.as_unsigned_int()?, location.as_unsigned_int()? != 0 ,count.as_unsigned_int()?);
-							return None;
+                            return None;
                         };
                         let id = id.as_short()?;
                         let value = val_or_offset.as_short()?;
