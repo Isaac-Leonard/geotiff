@@ -1,7 +1,10 @@
-# A TIFF Library for Rust
+# A GeoTIFF reader Library for Rust
 
 ![Version](https://img.shields.io/badge/version-v0.0.1-red.svg)
-
+## This has been forked from https://github.com/georust/geotiff
+I have added in the ability to read and access geotiff specific information, read tiled tiff images and generally cleaned up the code and hopefully made it easier to extend.
+I have moved to using the GDAL bindings now but may update this in the future as a full featured geotiff library would be useful to have in rust.
+## Original README
 I needed this library to import elevation models for a routing library. As elevation models usually come in GeoTIFF format, but no such library was available for Rust, I created this library, taking other libraries as inspiration:
 
 * Gavin Baker's TIFF (discontinued, it seems: https://github.com/gavinb/rust-tiff).
